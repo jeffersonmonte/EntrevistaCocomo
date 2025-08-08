@@ -1,0 +1,6 @@
+@Entrevistas.WebApi_HostAddress = http://localhost:5045
+
+GET {{Entrevistas.WebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

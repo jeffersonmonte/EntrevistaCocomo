@@ -86,6 +86,27 @@ const InterviewForm = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
+           <br />
+           <div className="mt-8 border rounded p-4">
+            <h3 className="text-lg font-semibold mb-2">Medições COSMIC</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Preencha as funcionalidades abaixo; o <b>KLOC</b> será calculado automaticamente e preencherá o campo do formulário.
+            </p>
+
+            <CosmicInlineGrid
+              linguagem={formData.linguagem}
+              onChange={({ totalCFP, kloc }) => {
+                setResumo({ totalCFP, kloc });
+                setFormData((prev) => ({ ...prev, valorKloc: kloc ?? 0 }));
+              }}
+            />
+
+            <div className="mt-4 text-sm">
+              <div>Total CFP (inline): <b>{resumo.totalCFP ?? 0}</b></div>
+              <div>KLOC (inline): <b>{(resumo.kloc ?? 0).toFixed ? (resumo.kloc ?? 0).toFixed(3) : resumo.kloc}</b></div>
+            </div>
+          </div>
+          <br />
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block">Nome do Entrevistado</label>
@@ -101,7 +122,6 @@ const InterviewForm = () => {
               <label className="block">Data da Entrevista</label>
               <input type="date" className="border p-2 w-full" onChange={(e) => setFormData({ ...formData, dataEntrevista: e.target.value })} />
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block">Tipo de Entrada</label>
@@ -180,27 +200,7 @@ const InterviewForm = () => {
             </div>
 
             <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded mt-4">Salvar</button>
-          </form>
-
-          <div className="mt-8 border rounded p-4">
-            <h3 className="text-lg font-semibold mb-2">Medições COSMIC</h3>
-            <p className="text-sm text-gray-600 mb-3">
-              Preencha as funcionalidades abaixo; o <b>KLOC</b> será calculado automaticamente e preencherá o campo do formulário.
-            </p>
-
-            <CosmicInlineGrid
-              linguagem={formData.linguagem}
-              onChange={({ totalCFP, kloc }) => {
-                setResumo({ totalCFP, kloc });
-                setFormData((prev) => ({ ...prev, valorKloc: kloc ?? 0 }));
-              }}
-            />
-
-            <div className="mt-4 text-sm">
-              <div>Total CFP (inline): <b>{resumo.totalCFP ?? 0}</b></div>
-              <div>KLOC (inline): <b>{(resumo.kloc ?? 0).toFixed ? (resumo.kloc ?? 0).toFixed(3) : resumo.kloc}</b></div>
-            </div>
-          </div>
+          </form>         
         </div>
 
         <aside className="lg:col-span-1">

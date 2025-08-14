@@ -6,7 +6,7 @@ public class FatoresConversaoDto
     public string TipoEntrada { get; set; } = null!;
     public string Contexto { get; set; } = null!;
     public string Nivel { get; set; } = null!;
-    public double FatorConversao { get; set; }
+    public decimal FatorConversao { get; set; }
 
     public string? NomeCompleto { get; set; }
     public string? Descricao { get; set; }

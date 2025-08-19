@@ -45,6 +45,7 @@ const ListaEntrevistas = () => {
       {loading ? (<Loader />) : (<table className="min-w-full bg-white border">
         <thead>
           <tr>
+            <th className="border px-4 py-2">Nome da Entrevista</th>
             <th className="border px-4 py-2">Entrevistador</th>
             <th className="border px-4 py-2">Entrevistado</th>
             <th className="border px-4 py-2">Data</th>
@@ -57,6 +58,7 @@ const ListaEntrevistas = () => {
         <tbody>
           {entrevistas.map((e) => (
             <tr key={e.id}>
+              <td className="border px-4 py-2">{e.nomeEntrevista || '(sem título)'}</td>
               <td className="border px-4 py-2">{e.nomeEntrevistador}</td>
               <td className="border px-4 py-2">{e.nomeEntrevistado}</td>
               <td className="border px-4 py-2">{e.dataEntrevista ? new Date(e.dataEntrevista).toLocaleDateString('pt-BR') : ''}</td>

@@ -19,6 +19,11 @@ const InterviewForm = () => {
     scaleFactors: [],
     effortMultipliers: [],
   });
+  // Tipo de entrada: 1 = KLOC, 2 = Pontos de Função
+  const isKloc =
+    formData?.tipoEntrada === 1 ||
+    (typeof formData?.tipoEntrada === 'string' &&
+      String(formData?.tipoEntrada).toUpperCase() === 'KLOC');
 
   const [fatoresConversao, setFatoresConversao] = useState([]);
   const [resumo, setResumo] = useState({ totalCFP: 0, kloc: 0 });
@@ -84,16 +89,36 @@ const InterviewForm = () => {
     <div className="max-w-6xl mx-auto p-4">
       <h2 className="text-2xl font-bold mb-6">Nova Entrevista</h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-           <br />
-           <div className="mt-8 border rounded p-4">
+           <div className="border-2 rounded p-4">
             <h3 className="text-lg font-semibold mb-2">Medições COSMIC</h3>
             <p className="text-sm text-gray-600 mb-3">
-              Preencha as funcionalidades abaixo; o <b>KLOC</b> será calculado automaticamente e preencherá o campo do formulário.
+              Preencha as funcionalidades abaixo; o <b>KLOC</b> será calculado automaticamente e
+              preencherá o campo do formulário.
             </p>
+            
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+            <div>
+              <label className="block text-sm font-medium">Linguagem para conversão (COSMIC)</label>
+              <select
+                className="border-2 p-2 w-full"
+                value={formData.linguagem}
+                onChange={(e) => setFormData({ ...formData, linguagem: e.target.value })}
+              >
+                <option value="">Selecione...</option>
+                <option value="C#">C#</option>
+                <option value=".NET">.NET</option>
+                <option value="Java">Java</option>
+                <option value="Python">Python</option>
+                <option value="JavaScript">JavaScript</option>
+                <option value="TypeScript">TypeScript</option>
+                <option value="SQL">SQL</option>
+              </select>
+            </div>
+          </div>
 
-            <CosmicInlineGrid
+          <CosmicInlineGrid
               linguagem={formData.linguagem}
               onChange={({ totalCFP, kloc }) => {
                 setResumo({ totalCFP, kloc });
@@ -102,65 +127,171 @@ const InterviewForm = () => {
             />
 
             <div className="mt-4 text-sm">
-              <div>Total CFP (inline): <b>{resumo.totalCFP ?? 0}</b></div>
-              <div>KLOC (inline): <b>{(resumo.kloc ?? 0).toFixed ? (resumo.kloc ?? 0).toFixed(3) : resumo.kloc}</b></div>
+              <div>
+                Total CFP (inline): <b>{resumo.totalCFP ?? 0}</b>
+              </div>
+              <div>
+                KLOC (inline):{' '}
+                <b>
+                  {resumo.kloc && resumo.kloc.toFixed
+                    ? resumo.kloc.toFixed(3)
+                    : resumo.kloc ?? 0}
+                </b>
+              </div>
             </div>
           </div>
           <br />
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block">Nome do Entrevistado</label>
-              <input type="text" className="border p-2 w-full" onChange={(e) => setFormData({ ...formData, nomeEntrevistado: e.target.value })} />
+              <label className="block">Nome da Entrevista</label>
+              <input
+                type="text"
+                className="border-2 border-gray-300 p-2 w-full rounded"
+                value={formData.nomeEntrevista}
+                onChange={(e) => setFormData({ ...formData, nomeEntrevista: e.target.value })}
+              />
+            </div>
+            <div>
+              <div>
+                <label className="block">Nome do Entrevistado</label>
+                <input
+                  type="text"
+                  className="border-2 p-2 w-full"
+                  value={formData.nomeEntrevistado}
+                  onChange={(e) =>
+                    setFormData({ ...formData, nomeEntrevistado: e.target.value })
+                  }
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block">Nome do Entrevistador</label>
-              <input type="text" className="border p-2 w-full" onChange={(e) => setFormData({ ...formData, nomeEntrevistador: e.target.value })} />
+              <div>
+                <label className="block">Nome do Entrevistador</label>
+                <input
+                  type="text"
+                  className="border-2 p-2 w-full"
+                  value={formData.nomeEntrevistador}
+                  onChange={(e) =>
+                    setFormData({ ...formData, nomeEntrevistador: e.target.value })
+                  }
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block">Data da Entrevista</label>
-              <input type="date" className="border p-2 w-full" onChange={(e) => setFormData({ ...formData, dataEntrevista: e.target.value })} />
+              <div>
+                <label className="block">Data da Entrevista</label>
+                <input
+                  type="date"
+                  className="border-2 p-2 w-full"
+                  value={formData.dataEntrevista}
+                  onChange={(e) =>
+                    setFormData({ ...formData, dataEntrevista: e.target.value })
+                  }
+                />
+              </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block">Tipo de Entrada</label>
-                <select className="border p-2 w-full" value={formData.tipoEntrada} onChange={(e) => setFormData({ ...formData, tipoEntrada: parseInt(e.target.value) })}>
+                <select
+                  className="border-2 p-2 w-full"
+                  value={formData.tipoEntrada}
+                  onChange={(e) =>
+                    setFormData({ ...formData, tipoEntrada: parseInt(e.target.value) })
+                  }
+                >
                   <option value={1}>KLOC</option>
                   <option value={2}>Pontos de Função</option>
                 </select>
               </div>
+
               <div>
-                <label className="block">Valor KLOC</label>
-                <input type="number" className="border p-2 w-full" value={formData.valorKloc} onChange={(e) => setFormData({ ...formData, valorKloc: parseFloat(e.target.value) })} />
-                <p className="text-xs text-gray-500 mt-1">Este campo é atualizado automaticamente pelas medições COSMIC abaixo.</p>
+                <div>
+                  <label className="block">Valor KLOC</label>
+                  <input
+                    type="number"
+                    className="border-2 p-2 w-full"
+                    value={formData.valorKloc}
+                    disabled={!isKloc}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        valorKloc: parseFloat(e.target.value),
+                      })
+                    }
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Este campo é atualizado automaticamente pelas medições COSMIC abaixo.
+                  </p>
+                </div>
               </div>
+
               <div>
-                <label className="block">Pontos de Função</label>
-                <input type="number" className="border p-2 w-full" onChange={(e) => setFormData({ ...formData, pontosDeFuncao: parseFloat(e.target.value) })} />
-              </div>
-              <div>
-                <label className="block">Linguagem</label>
-                <input type="text" className="border p-2 w-full" onChange={(e) => setFormData({ ...formData, linguagem: e.target.value })} />
+                <div>
+                  <label className="block">Pontos de Função</label>
+                  <input
+                    type="number"
+                    className="border-2 p-2 w-full"
+                    value={formData.pontosDeFuncao}
+                    disabled={isKloc}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        pontosDeFuncao: parseFloat(e.target.value),
+                      })
+                    }
+                  />
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block">Entradas</label>
-                <input type="number" className="border p-2 w-full" onChange={(e) => setFormData({ ...formData, entradas: parseFloat(e.target.value) })} />
+                <input
+                  type="number"
+                  className="border-2 p-2 w-full"
+                  value={formData.entradas}
+                  onChange={(e) =>
+                    setFormData({ ...formData, entradas: parseFloat(e.target.value) })
+                  }
+                />
               </div>
               <div>
                 <label className="block">Saídas</label>
-                <input type="number" className="border p-2 w-full" onChange={(e) => setFormData({ ...formData, saidas: parseFloat(e.target.value) })} />
+                <input
+                  type="number"
+                  className="border-2 p-2 w-full"
+                  value={formData.saidas}
+                  onChange={(e) =>
+                    setFormData({ ...formData, saidas: parseFloat(e.target.value) })
+                  }
+                />
               </div>
               <div>
                 <label className="block">Leituras</label>
-                <input type="number" className="border p-2 w-full" onChange={(e) => setFormData({ ...formData, leitura: parseFloat(e.target.value) })} />
+                <input
+                  type="number"
+                  className="border-2 p-2 w-full"
+                  value={formData.leitura}
+                  onChange={(e) =>
+                    setFormData({ ...formData, leitura: parseFloat(e.target.value) })
+                  }
+                />
               </div>
               <div>
                 <label className="block">Gravações</label>
-                <input type="number" className="border p-2 w-full" onChange={(e) => setFormData({ ...formData, gravacao: parseFloat(e.target.value) })} />
+                <input
+                  type="number"
+                  className="border-2 p-2 w-full"
+                  value={formData.gravacao}
+                  onChange={(e) =>
+                    setFormData({ ...formData, gravacao: parseFloat(e.target.value) })
+                  }
+                />
               </div>
             </div>
 
@@ -172,10 +303,15 @@ const InterviewForm = () => {
                   <label className="block font-medium" title={dados.descricao}>
                     {contexto} - {dados.nomeCompleto}
                   </label>
-                  <select className="border p-2 w-full" onChange={(e) => handleFatorChange('ScaleFactor', contexto, e.target.value)}>
+                  <select
+                    className="border-2 p-2 w-full"
+                    onChange={(e) => handleFatorChange('ScaleFactor', contexto, e.target.value)}
+                  >
                     <option value="">Selecione o nível</option>
                     {dados.niveis.map((n) => (
-                      <option key={n.nivel} value={n.nivel}>{n.nivel} ({n.valor})</option>
+                      <option key={n.nivel} value={n.nivel}>
+                        {n.nivel} ({n.valor})
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -189,18 +325,27 @@ const InterviewForm = () => {
                   <label className="block font-medium" title={dados.descricao}>
                     {contexto} - {dados.nomeCompleto}
                   </label>
-                  <select className="border p-2 w-full" onChange={(e) => handleFatorChange('EffortMultiplier', contexto, e.target.value)}>
+                  <select
+                    className="border-2 p-2 w-full"
+                    onChange={(e) =>
+                      handleFatorChange('EffortMultiplier', contexto, e.target.value)
+                    }
+                  >
                     <option value="">Selecione o nível</option>
                     {dados.niveis.map((n) => (
-                      <option key={n.nivel} value={n.nivel}>{n.nivel} ({n.valor})</option>
+                      <option key={n.nivel} value={n.nivel}>
+                        {n.nivel} ({n.valor})
+                      </option>
                     ))}
                   </select>
                 </div>
               ))}
             </div>
 
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded mt-4">Salvar</button>
-          </form>         
+            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded mt-4">
+              Salvar
+            </button>
+          </form>
         </div>
 
         <aside className="lg:col-span-1">

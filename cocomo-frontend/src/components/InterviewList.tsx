@@ -23,6 +23,7 @@ export default function InterviewList() {
       <ul className="space-y-2">
         {entrevistas.map(e => (
           <li key={e.id} className="p-2 border rounded">
+            <strong>{e.nomeEntrevista || '(sem título)'}</strong></div>
             <strong>{e.nomeEntrevistado}</strong> entrevistado por <em>{e.nomeEntrevistador}</em> em {new Date(e.dataEntrevista).toLocaleDateString()}
           </li>
         ))}

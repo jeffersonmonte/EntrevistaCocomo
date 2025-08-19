@@ -23,7 +23,8 @@ namespace Entrevistas.Infrastructure.Database
             modelBuilder.Entity<Entrevista>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.NomeEntrevistado).HasMaxLength(100).IsRequired();
+				entity.Property(e => e.NomeEntrevista).HasMaxLength(120).IsRequired();
+				entity.Property(e => e.NomeEntrevistado).HasMaxLength(100).IsRequired();
                 entity.Property(e => e.NomeEntrevistador).HasMaxLength(100).IsRequired();
 
                 entity.HasMany(e => e.ScaleFactors)

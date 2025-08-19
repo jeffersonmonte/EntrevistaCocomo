@@ -19,7 +19,7 @@ const DetalheEntrevista = () => {
 
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Entrevista de {entrevista.nomeEntrevistado}</h2>
+      <h2 className="text-xl font-bold mb-4">Entrevista do processo <u> {entrevista.nomeEntrevista || 'Não informado'}</u></h2>
       <p><strong>Entrevistador:</strong> {entrevista.nomeEntrevistador}</p>
       <p><strong>Entrevistado:</strong> {entrevista.nomeEntrevistado}</p>
       <p><strong>Data:</strong> {entrevista.dataEntrevista?.substring(0, 10)}</p>
@@ -32,7 +32,7 @@ const DetalheEntrevista = () => {
         <p><strong>KLOC:</strong> {(entrevista.tamanhoKloc ?? 0).toFixed ? (entrevista.tamanhoKloc ?? 0).toFixed(3) : entrevista.tamanhoKloc}</p>
       </div>
 
-      <h3 className="text-lg font-semibold mb-2">Resultado do COCOMO</h3>
+      <h3 className="text-lg font-semibold mb-2">Resultado do COCOMO II</h3>
       <div className="bg-gray-100 p-4 rounded">
         <p><strong>Esforço:</strong> {entrevista.esforcoPM?.toFixed(2)} pessoa-mês</p>
         <p><strong>Duração:</strong> {entrevista.prazoMeses?.toFixed(2)} meses</p>

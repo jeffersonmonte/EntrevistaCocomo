@@ -38,7 +38,8 @@ namespace Entrevistas.Application.Services
             var entrevista = new Domain.Entities.Entrevista
             {
                 Id = Guid.NewGuid(),
-                NomeEntrevistado = dto.NomeEntrevistado,
+				NomeEntrevista = dto.NomeEntrevista,
+				NomeEntrevistado = dto.NomeEntrevistado,
                 NomeEntrevistador = dto.NomeEntrevistador,
                 DataEntrevista = dto.DataEntrevista,
                 TipoEntrada = dto.TipoEntrada,
@@ -70,7 +71,8 @@ namespace Entrevistas.Application.Services
             return new EntrevistaOutputDto
             {
                 Id = entrevista.Id,
-                NomeEntrevistado = entrevista.NomeEntrevistado,
+				NomeEntrevista = entrevista.NomeEntrevista,
+				NomeEntrevistado = entrevista.NomeEntrevistado,
                 NomeEntrevistador = entrevista.NomeEntrevistador,
                 DataEntrevista = entrevista.DataEntrevista,
                 Linguagem = entrevista.Linguagem,
@@ -121,7 +123,8 @@ namespace Entrevistas.Application.Services
                     ProdutoEffortMultipliers = e.ProdutoEffortMultipliers,
                     EsforcoPM = e.EsforcoPM,
                     PrazoMeses = e.PrazoMeses,
-                    TotalCFP = e.TotalCFP
+                    TotalCFP = e.TotalCFP,
+                    NomeEntrevista = e.NomeEntrevista
                 }).ToListAsync();
         }
 
@@ -143,7 +146,9 @@ namespace Entrevistas.Application.Services
                 ProdutoEffortMultipliers = e.ProdutoEffortMultipliers,
                 EsforcoPM = e.EsforcoPM,
                 PrazoMeses = e.PrazoMeses,
-                TotalCFP = e.TotalCFP
+                TotalCFP = e.TotalCFP,
+                NomeEntrevista = e.NomeEntrevista,
+                TipoEntrada = e.TipoEntrada
             };
         }
         public async Task<Guid> AdicionarFuncionalidadeAsync(Guid entrevistaId, NovaFuncDto dto)
@@ -220,6 +225,7 @@ namespace Entrevistas.Application.Services
             var ent = new Entrevistas.Domain.Entities.Entrevista
             {
                 Id = Guid.NewGuid(),
+                NomeEntrevista = dto.NomeEntrevista,
                 NomeEntrevistado = dto.NomeEntrevistado,
                 NomeEntrevistador = dto.NomeEntrevistador,
                 DataEntrevista = dto.DataEntrevista,

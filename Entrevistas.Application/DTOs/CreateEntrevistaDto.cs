@@ -7,7 +7,8 @@ namespace Entrevistas.Application.DTOs
     public record ScaleEffortItemDto(string Nome, string Nivel, decimal Valor);
 
     public record CreateEntrevistaDto(
-        string NomeEntrevistado,
+		string NomeEntrevista,
+		string NomeEntrevistado,
         string NomeEntrevistador,
         DateTime DataEntrevista,
         int TipoEntrada,          // 1=KLOC, 2=PF
@@ -20,6 +21,6 @@ namespace Entrevistas.Application.DTOs
         int Gravacao,
         IEnumerable<ScaleEffortItemDto>? ScaleFactors,
         IEnumerable<ScaleEffortItemDto>? EffortMultipliers,
-        List<FuncInlineDto>? Funcionalidades // << NOVO
+        List<FuncInlineDto>? Funcionalidades
     );
 }

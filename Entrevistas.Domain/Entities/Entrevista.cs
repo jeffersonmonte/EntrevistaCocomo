@@ -5,7 +5,8 @@ namespace Entrevistas.Domain.Entities
     public class Entrevista
     {
         public Guid Id { get; set; }
-        public string NomeEntrevistado { get; set; } = string.Empty;
+		public string NomeEntrevista { get; set; } = string.Empty;
+		public string NomeEntrevistado { get; set; } = string.Empty;
         public string NomeEntrevistador { get; set; } = string.Empty;
         public DateTime DataEntrevista { get; set; }
         public TipoEntradaTamanho TipoEntrada { get; set; }

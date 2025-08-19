@@ -18,6 +18,7 @@ BEGIN
     CREATE TABLE dbo.Entrevistas
     (
         Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_Entrevistas PRIMARY KEY,
+		NomeEntrevista NVARCHAR(120) NOT NULL,
         NomeEntrevistado NVARCHAR(100) NOT NULL,
         NomeEntrevistador NVARCHAR(100) NOT NULL,
         DataEntrevista DATE NOT NULL,
@@ -170,12 +171,12 @@ END;
 IF NOT EXISTS (SELECT 1 FROM dbo.ConversoesTamanho WHERE TipoEntrada='PF' AND Contexto='C#')
 BEGIN
     INSERT INTO dbo.ConversoesTamanho (TipoEntrada, Contexto, FatorConversao) VALUES
-    ('PF', 'C#', 53.0),
-    ('PF', 'ASP.NET', 50.0),
-    ('PF', 'Java', 53.0),
-    ('PF', 'React', 30.0),
-    ('PF', 'Node.js', 40.0),
-    ('PF', 'Python', 42.0);
+    ('COSMIC', 'C#', 53.0),
+    ('COSMIC', 'ASP.NET', 50.0),
+    ('COSMIC', 'Java', 53.0),
+    ('COSMIC', 'React', 30.0),
+    ('COSMIC', 'Node.js', 40.0),
+    ('COSMIC', 'Python', 42.0);
 END;
 
 -- SCALE FACTORS (SF)

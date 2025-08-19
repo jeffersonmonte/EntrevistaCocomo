@@ -1,140 +1,124 @@
-import { useMemo, useState } from 'react';
-import { getFuncionalidades, postFuncionalidade, postRecalcular } from '../services/entrevistas';
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
+import React, { useEffect, useMemo, useState } from "react";
 
-const TEMPLATES: Record<string,{E:number,X:number,R:number,W:number}> = {
-  Consulta: { E:1, X:1, R:1, W:0 },
-  Inclusao: { E:1, X:1, R:0, W:1 },
-  Alteracao:{ E:1, X:1, R:1, W:1 },
-  Exclusao: { E:1, X:0, R:1, W:1 },
-};
+// Tipagem opcional para o item vindo do endpoint de conversões
+type FormatoConversao = "CFP_KLOC" | "LOC_CFP" | undefined;
+interface Conversao {
+  tipoEntrada: string;           // ex.: 'COSMIC'
+  contexto?: string | null;      // ex.: 'C#' | '.NET' | 'Padrão'
+  fatorConversao: number;        // número positivo
+  formato?: FormatoConversao;    // 'CFP_KLOC' (CFP por KLOC) ou 'LOC_CFP' (LOC por CFP)
+}
 
-type Linha = { id?: string; nome: string; template?: string; obs?: string; E:number; X:number; R:number; W:number; };
+interface Props {
+  linguagem?: string;
+  onChange?: (data: { totalCFP: number; kloc: number }) => void;
+}
 
-export default function CosmicGrid({ entrevistaId, onRecalc }: { entrevistaId: string; onRecalc?: (r:{totalCFP:number; kloc:number})=>void; }) {
-  const [linhas, setLinhas] = useState<Linha[]>([]);
-  const [novo, setNovo] = useState<Linha>({ nome:'', template:'Consulta', obs:'', ...TEMPLATES['Consulta'] });
+const CosmicInlineGrid: React.FC<Props> = ({ linguagem, onChange }) => {
+  // Novo fallback mais conservador: ~30 LOC/CFP => 1000/30 ≈ 33 CFP/KLOC
+  const [fator, setFator] = useState<number>(33); // unidade interna = CFP/KLOC
+  const [totalCFP, setTotalCFP] = useState<number>(0);
+  const [convs, setConvs] = useState<Conversao[]>([]);
+  const [apiStatus, setApiStatus] = useState<"idle" | "ok" | "error">("idle");
 
-  const totalCFP = useMemo(()=>linhas.reduce((s,l)=>s + l.E + l.X + l.R + l.W, 0), [linhas]);
+  useEffect(() => {
+    async function fetchConversoes() {
+      try {
+        const resp = await fetch("/api/config/conversoes");
+        if (!resp.ok) throw new Error("HTTP error");
+        const data = (await resp.json()) as Conversao[];
+        setConvs(Array.isArray(data) ? data : []);
+        setApiStatus("ok");
+      } catch (e) {
+        console.error("Erro ao carregar conversões", e);
+        setApiStatus("error");
+      }
+    }
+    fetchConversoes();
+  }, []);
 
-  async function carregar() {
-    const data = await getFuncionalidades(entrevistaId);
-    const items: Linha[] = data.map((d:any)=>({ id:d.id, nome:d.nome, template:d.template, obs:d.observacoes, E:d.e, X:d.x, R:d.r, W:d.w }));
-    setLinhas(items);
-  }
+  useEffect(() => {
+    // Seleciona por linguagem; se não achar, usa 'Padrão'
+    const lang = (linguagem || "").toLowerCase();
+    const matchSpecific = convs.find(
+      (c) =>
+        c.tipoEntrada === "COSMIC" &&
+        (c.contexto?.toLowerCase?.() === lang)
+    );
+    const matchPadrao = convs.find(
+      (c) => c.tipoEntrada === "COSMIC" && (!c.contexto || c.contexto === "Padrão")
+    );
 
-  function aplicarTemplate(tpl:string) {
-    const t = TEMPLATES[tpl] ?? {E:0,X:0,R:0,W:0};
-    setNovo(n => ({ ...n, ...t, template: tpl }));
-  }
+    let fatorVal = matchSpecific?.fatorConversao ?? matchPadrao?.fatorConversao;
+    const formato: FormatoConversao =
+      matchSpecific?.formato ?? matchPadrao?.formato ?? undefined;
 
-  async function adicionar() {
-    if (!novo.nome.trim()) return;
-    const payload = { nome: novo.nome, template: novo.template, observacoes: novo.obs, medicao: { E: novo.E, X: novo.X, R: novo.R, W: novo.W } };
-    await postFuncionalidade(entrevistaId, payload);
-    await carregar();
-    setNovo({ nome:'', template:'Consulta', obs:'', ...TEMPLATES['Consulta'] });
-  }
+    // Padronização: internamente trabalhamos com CFP/KLOC.
+    // Se o backend já envia em CFP/KLOC => usar direto.
+    // Se vier em LOC/CFP => converter: CFP/KLOC = 1000 / (LOC/CFP)
+    if (fatorVal && fatorVal > 0) {
+      if (formato === "LOC_CFP") {
+        fatorVal = 1000 / fatorVal; // converte de LOC/CFP para CFP/KLOC
+      } else if (formato === "CFP_KLOC") {
+        // ok, já está no formato interno
+      } else {
+        // Heurística quando a API não informa formato:
+        // valores típicos de LOC/CFP ~ 15..150 -> converter
+        const pareceLOCporCFP = fatorVal >= 15 && fatorVal <= 150;
+        if (pareceLOCporCFP) {
+          fatorVal = 1000 / fatorVal;
+        }
+      }
+      setFator(Number(fatorVal));
+    }
+  }, [convs, linguagem]);
 
-  async function recalcular() {
-    const r = await postRecalcular(entrevistaId); // { totalCFP, kloc }
-    onRecalc?.(r);
-  }
+  // Cálculo padronizado: fator é CFP/KLOC => KLOC = CFP / (CFP/KLOC)
+  const kloc = useMemo(() => {
+    return fator > 0 ? +(totalCFP / fator).toFixed(3) : 0;
+  }, [totalCFP, fator]);
 
-  function exportar(tipo:'csv'|'xlsx') {
-    const rows = linhas.map(l => ({ Funcionalidade: l.nome, Template: l.template, E:l.E, X:l.X, R:l.R, W:l.W, CFP: l.E+l.X+l.R+l.W }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'COSMIC');
-    const data = XLSX.write(wb, { bookType: tipo, type: 'array' });
-    const mime = tipo === 'xlsx' ? 'application/octet-stream' : 'text/csv;charset=utf-8;';
-    saveAs(new Blob([data], { type: mime }), `cosmic_${entrevistaId}.${tipo}`);
-  }
+  useEffect(() => {
+    onChange?.({ totalCFP, kloc });
+  }, [totalCFP, kloc, onChange]);
 
-  // carregar on mount
-  if (linhas.length === 0) {
-    void carregar();
-  }
+  // Aviso de sanidade: faixa plausível para CFP/KLOC (≈ 1000/LOC/CFP)
+  const fatorForaFaixa = fator < 12 || fator > 80;
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-12 gap-2 items-end">
-        <div className="col-span-3">
-          <label className="text-xs">Nome</label>
-          <input className="w-full border rounded px-2 py-1" value={novo.nome} onChange={e=>setNovo({...novo, nome:e.target.value})} />
-        </div>
-        <div className="col-span-2">
-          <label className="text-xs">Template</label>
-          <select className="w-full border rounded px-2 py-1" value={novo.template} onChange={e=>aplicarTemplate(e.target.value)}>
-            {Object.keys(TEMPLATES).map(t => <option key={t}>{t}</option>)}
-          </select>
-        </div>
-        <div className="col-span-1">
-          <label className="text-xs">E</label>
-          <input type="number" min={0} className="w-full border rounded px-2 py-1" value={novo.E} onChange={e=>setNovo({...novo, E:+e.target.value})} />
-        </div>
-        <div className="col-span-1">
-          <label className="text-xs">X</label>
-          <input type="number" min={0} className="w-full border rounded px-2 py-1" value={novo.X} onChange={e=>setNovo({...novo, X:+e.target.value})} />
-        </div>
-        <div className="col-span-1">
-          <label className="text-xs">R</label>
-          <input type="number" min={0} className="w-full border rounded px-2 py-1" value={novo.R} onChange={e=>setNovo({...novo, R:+e.target.value})} />
-        </div>
-        <div className="col-span-1">
-          <label className="text-xs">W</label>
-          <input type="number" min={0} className="w-full border rounded px-2 py-1" value={novo.W} onChange={e=>setNovo({...novo, W:+e.target.value})} />
-        </div>
-        <div className="col-span-3">
-          <label className="text-xs">Observações</label>
-          <input className="w-full border rounded px-2 py-1" value={novo.obs} onChange={e=>setNovo({...novo, obs:e.target.value})} />
-        </div>
-        <div className="col-span-12">
-          <button className="bg-blue-600 text-white px-3 py-1 rounded" onClick={adicionar}>Adicionar</button>
-        </div>
+    <div className="space-y-2">
+      <div className="flex items-center gap-3">
+        <label className="text-sm text-gray-600">
+          Fator de conversão (CFP/KLOC)
+        </label>
+        <input
+          type="number"
+          step="0.001"
+          className="border rounded px-2 py-1 w-32"
+          value={fator}
+          onChange={(e) => setFator(Number(e.target.value))}
+          min={0}
+        />
       </div>
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full border text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="border px-2 py-1 text-left">Funcionalidade</th>
-              <th className="border px-2 py-1">Tpl</th>
-              <th className="border px-2 py-1">E</th>
-              <th className="border px-2 py-1">X</th>
-              <th className="border px-2 py-1">R</th>
-              <th className="border px-2 py-1">W</th>
-              <th className="border px-2 py-1">CFP</th>
-            </tr>
-          </thead>
-          <tbody>
-            {linhas.map((l,i)=>(
-              <tr key={l.id ?? i}>
-                <td className="border px-2 py-1">{l.nome}</td>
-                <td className="border px-2 py-1 text-center">{l.template}</td>
-                <td className="border px-2 py-1 text-center">{l.E}</td>
-                <td className="border px-2 py-1 text-center">{l.X}</td>
-                <td className="border px-2 py-1 text-center">{l.R}</td>
-                <td className="border px-2 py-1 text-center">{l.W}</td>
-                <td className="border px-2 py-1 text-center">{l.E + l.X + l.R + l.W}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="bg-gray-50 font-semibold">
-              <td className="border px-2 py-1" colSpan={6}>Total CFP</td>
-              <td className="border px-2 py-1 text-center">{totalCFP}</td>
-            </tr>
-          </tfoot>
-        </table>
+      {apiStatus === "error" && (
+        <div className="text-xs text-amber-700">
+          ⚠️ Não foi possível carregar os fatores do servidor. Usando valor padrão.
+        </div>
+      )}
+      {fatorForaFaixa && (
+        <div className="text-xs text-red-600">
+          ⚠️ Fator fora da faixa típica. Verifique a unidade vinda do backend
+          (LOC/CFP vs CFP/KLOC) ou calibre com dados históricos do seu contexto C#/.NET.
+        </div>
+      )}
+      <div className="text-sm">
+        Total CFP: <strong>{totalCFP}</strong>
       </div>
-
-      <div className="flex gap-2">
-        <button className="bg-emerald-600 text-white px-3 py-1 rounded" onClick={()=>exportar('csv')}>Exportar CSV</button>
-        <button className="bg-amber-600 text-white px-3 py-1 rounded" onClick={()=>exportar('xlsx')}>Exportar XLSX</button>
-        <button className="bg-slate-700 text-white px-3 py-1 rounded" onClick={recalcular}>Recalcular CFP/KLOC</button>
+      <div className="text-sm">
+        KLOC (derivado): <strong>{kloc}</strong>
       </div>
     </div>
   );
-}
+};
+
+export default CosmicInlineGrid;

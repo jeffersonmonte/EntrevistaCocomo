@@ -16,7 +16,7 @@ namespace Entrevistas.WebApi.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] EntrevistaInputDto dto)
+        public async Task<ActionResult<EntrevistaOutputDto>> Post([FromBody] EntrevistaInputDto dto)
         {
             var resultado = await _service.CriarEntrevistaAsync(dto);
             return CreatedAtAction(nameof(GetById), new { id = resultado.Id }, resultado);

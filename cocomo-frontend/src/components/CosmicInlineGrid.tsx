@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+
+import React, { useEffect, useMemo, useState } from 'react';
 
 type Linha = { id?: string; nome: string; template?: string; obs?: string; E:number; X:number; R:number; W:number; };
 
@@ -22,37 +23,52 @@ async function fetchConversoes(): Promise<any[]> {
 /**
  * Medição COSMIC inline (sem persistir ainda).
  * Calcula CFP e KLOC localmente e notifica o formulário via onChange.
+ * Nota: COSMIC não varia por linguagem; este componente ignora linguagem para fator.
  */
 export default function CosmicInlineGrid({
   linguagem,
   onChange
 }: {
   linguagem?: string | null;
-  onChange?: (r:{ totalCFP:number; kloc:number }) => void;
+  onChange?: (r:{ totalCFP:number; kloc:number, cfpPorKloc:number, klocPorCfp:number, source:string }) => void;
 }) {
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [novo, setNovo] = useState<Linha>({ nome:'', template:'Consulta', obs:'', ...TEMPLATES['Consulta'] });
-  const [fator, setFator] = useState<number>(105); // fallback: 105 CFP/KLOC
 
-  // Carrega fator de conversão conforme a linguagem
+  // Mantemos ambos para exibição e cálculo
+  const [cfpPorKloc, setCfpPorKloc] = useState<number>(40);   // CFP/KLOC
+  const [klocPorCfp, setKlocPorCfp] = useState<number>(1/40); // KLOC/CFP
+
+  // Carrega fator COSMIC corretamente (sem filtrar por linguagem)
   useEffect(() => {
     let active = true;
     (async () => {
       const convs = await fetchConversoes();
-      const matchSpecific = convs.find((c:any)=> c.tipoEntrada==='COSMIC' && (c.contexto?.toLowerCase?.() === (linguagem||'').toLowerCase()));
-      const matchPadrao = convs.find((c:any)=> c.tipoEntrada==='COSMIC' && (!c.contexto || c.contexto === 'Padrão'));
-      const fatorVal = matchSpecific?.fatorConversao ?? matchPadrao?.fatorConversao ?? 105;
-      if (active) setFator(Number(fatorVal) || 105);
+      const geral  = convs.find((c:any)=> c.tipoEntrada==='COSMIC' && c.contexto === 'Geral');    // KLOC/CFP
+      const padrao = convs.find((c:any)=> c.tipoEntrada==='COSMIC' && (c.contexto === 'Padrão' || !c.contexto)); // CFP/KLOC
+
+      let kpc = 0.025, cpk = 40;
+      if (geral && Number(geral.fatorConversao) > 0) {
+        kpc = Number(geral.fatorConversao);
+        cpk = 1 / kpc;
+      } else if (padrao && Number(padrao.fatorConversao) > 0) {
+        cpk = Number(padrao.fatorConversao);
+        kpc = 1 / cpk;
+      }
+      if (active) {
+        setKlocPorCfp(kpc);
+        setCfpPorKloc(cpk);
+      }
     })();
     return () => { active = false; };
-  }, [linguagem]);
+  }, []);
 
   const totalCFP = useMemo(()=>linhas.reduce((s,l)=>s + l.E + l.X + l.R + l.W, 0), [linhas]);
-  const kloc = useMemo(()=> (fator > 0 ? +(totalCFP / fator).toFixed(3) : 0), [totalCFP, fator]);
+  const kloc = useMemo(()=> +(totalCFP * klocPorCfp).toFixed(3), [totalCFP, klocPorCfp]);
 
   useEffect(()=>{
-    onChange?.({ totalCFP, kloc });
-  }, [totalCFP, kloc]);
+    onChange?.({ totalCFP, kloc, cfpPorKloc, klocPorCfp, source: 'COSMIC' });
+  }, [totalCFP, kloc, cfpPorKloc, klocPorCfp]);
 
   function aplicarTemplate(tpl:string) {
     const t = TEMPLATES[tpl] ?? {E:0,X:0,R:0,W:0};
@@ -107,8 +123,9 @@ export default function CosmicInlineGrid({
         </div>
       </div>
 
-      <div className="text-xs text-gray-600">
-        Fator de conversão (CFP/KLOC): <b>{fator}</b> {linguagem ? `(linguagem: ${linguagem})` : '(padrão)'}
+      <div className="text-xs text-gray-600 space-y-1">
+        <div>Fator (CFP/KLOC): <b>{cfpPorKloc}</b> — equivalente (KLOC/CFP): <b>{klocPorCfp.toFixed(3)}</b></div>
+        <div className="italic">* COSMIC não varia por linguagem (campo de linguagem é ignorado aqui).</div>
       </div>
 
       <div className="overflow-x-auto">

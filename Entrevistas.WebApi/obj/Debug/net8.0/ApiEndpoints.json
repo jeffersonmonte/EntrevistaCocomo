@@ -122,7 +122,17 @@
         "IsRequired": true
       }
     ],
-    "ReturnTypes": []
+    "ReturnTypes": [
+      {
+        "Type": "Entrevistas.Application.DTOs.EntrevistaOutputDto",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
   },
   {
     "ContainingType": "Entrevistas.WebApi.Controllers.EntrevistasController",
@@ -149,6 +159,37 @@
       }
     ],
     "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Entrevistas.WebApi.Controllers.MonteCarloController",
+    "Method": "Run",
+    "RelativePath": "api/entrevistas/{id}/cocomo/monte-carlo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "options",
+        "Type": "Entrevistas.Application.DTOs.MonteCarloOptionsDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Entrevistas.Application.DTOs.MonteCarloSummaryDto",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
   },
   {
     "ContainingType": "Entrevistas.WebApi.Controllers.EntrevistasCosmicController",

@@ -1,4 +1,5 @@
 using Entrevista.Application.Services;
+using Entrevistas.Application.DTOs;
 using Entrevistas.Application.Interfaces;
 using Entrevistas.Application.Services;
 using Entrevistas.Infrastructure.Database;
@@ -18,6 +19,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<ITamanhoService, TamanhoService>();
 builder.Services.AddScoped<IEntrevistaService, EntrevistaService>();
 builder.Services.AddScoped<IFatoresConversaoService, FatoresConversaoService>();
+builder.Services.AddScoped<IMonteCarloService, MonteCarloService>();
 
 
 var app = builder.Build();

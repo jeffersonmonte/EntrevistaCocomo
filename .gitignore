@@ -110,3 +110,10 @@
 /.vs/ProjectEvaluation/entrevistas.strings.v9.bin
 /.vs/Entrevistas/FileContentIndex
 /.vs/Entrevistas/v17/.futdcache.v2
+/Entrevistas.Application/bin/Debug/net8.0
+/Entrevistas.Application/obj/Debug/net8.0
+/Entrevistas.Domain/bin/Debug/net8.0
+/Entrevistas.Infrastructure/bin/Debug/net8.0
+/Entrevistas.WebApi/bin/Debug/net8.0
+/Entrevistas.WebApi/obj/Debug/net8.0
+/Entrevistas.Infrastructure/obj/Debug/net8.0

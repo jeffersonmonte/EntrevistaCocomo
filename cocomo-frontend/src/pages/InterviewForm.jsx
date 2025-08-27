@@ -319,7 +319,7 @@ const InterviewForm = () => {
     setMcResumo(null);
     setMcRaw(null);
 
-    // EDIÇÃO: apenas atualiza e sai (sem MC aqui, mas podemos adicionar se quiser)
+    // EDIÇÃO: apenas atualiza e sai (sem MC aqui)
     if (editId) {
       const upd = await updateEntrevista(editId);
       if (!upd.ok) {

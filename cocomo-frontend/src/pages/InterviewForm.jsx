@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import CocomoChecklist from '../components/CocomoChecklist';
 import CosmicInlineGrid from '../components/CosmicInlineGrid';
@@ -17,6 +17,8 @@ function saveMcLocal(id, resumoComMeta) {
 
 const InterviewForm = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('id');
 
   const [formData, setFormData] = useState({
     nomeEntrevistado: '',
@@ -30,8 +32,8 @@ const InterviewForm = () => {
     saidas: 0,
     leitura: 0,
     gravacao: 0,
-    scaleFactors: [],
-    effortMultipliers: [],
+    scaleFactors: [],       // [{ nome, nivel, valor }]
+    effortMultipliers: [],  // [{ nome, nivel, valor }]
     nomeEntrevista: '',
   });
 
@@ -91,6 +93,13 @@ const InterviewForm = () => {
 
   const scaleFactorData = agruparFatores('ScaleFactor');
   const effortMultiplierData = agruparFatores('EffortMultiplier');
+
+  // --------- Helpers: pegar seleção atual para cada contexto (para "value" do select) ---------
+  const selectedNivel = (tipo, contexto) => {
+    const list = tipo === 'ScaleFactor' ? formData.scaleFactors : formData.effortMultipliers;
+    const found = (list || []).find((x) => x.nome === contexto);
+    return found ? found.nivel : '';
+  };
 
   const handleFatorChange = (tipo, contexto, nivel) => {
     const fator = fatoresConversao.find(
@@ -195,7 +204,7 @@ const InterviewForm = () => {
       if (Number.isFinite(out1.pm.p50) || Number.isFinite(out1.tdev.p50)) return out1;
     }
 
-    // 2) chaves planas (maiúsculas/minúsculas, com/sem _)
+    // 2) chaves planas
     const pmFlat = {
       p10: val('P10_PM', 'p10_PM', 'P10PM', 'p10pm', 'pmP10'),
       p50: val('P50_PM', 'p50_PM', 'P50PM', 'p50pm', 'pmP50'),
@@ -217,7 +226,7 @@ const InterviewForm = () => {
     const out2 = { pm: coerce(pmFlat), tdev: coerce(tdFlat) };
     if (Number.isFinite(out2.pm.p50) || Number.isFinite(out2.tdev.p50)) return out2;
 
-    // 3) fallback DTO determinístico (P50)
+    // 3) fallback determinístico
     const pmDet = val('esforcoPM', 'esforco', 'pm', 'pessoaMes');
     const tdDet = val('prazoMeses', 'duracao', 'tdev', 'prazo');
     if (pmDet !== undefined || tdDet !== undefined) {
@@ -231,69 +240,65 @@ const InterviewForm = () => {
   const createEntrevista = async () => {
     try {
       const res = await axios.post('/api/entrevistas', formData);
-      console.log('[CREATE] base=/api/entrevistas status=', res && res.status);
       return { res, base: '/api/entrevistas' };
     } catch (e1) {
-      console.warn('[CREATE] fallback para /api/Entrevistas');
       const res2 = await axios.post('/api/Entrevistas', formData);
-      console.log('[CREATE] base=/api/Entrevistas status=', res2 && res2.status);
       return { res: res2, base: '/api/Entrevistas' };
     }
   };
 
-  // --------- polling do MC (várias rotas + fallback DTO) ---------
-  const pollMc = async (base, id, postData) => {
-    const candidates = [
-      `${base}/${id}/cocomo/monte-carlo`,
-      `${base}/${id}/cocomo/monte-carlo/resultado`,
-      `${base}/${id}/cocomo/monte-carlo/resumo`,
-      `${base}/${id}/cocomo/monte-carlo/summary`,
-      `${base}/${id}/cocomo/monte-carlo/sumario`,
-      `${base}/${id}/cocomo/monte-carlo/ultimo`,
-      `${base}/${id}/cocomo/monte-carlo/latest`,
-    ];
-    for (let attempt = 0; attempt < 10; attempt++) {
-      for (const url of candidates) {
-        try {
-          const r = await axios.get(url);
-          const norm = normalizeMc((r && r.data) || {});
-          if (norm) return { norm, raw: { step: 'poll-get', attempt, url, post: postData, get: r && r.data } };
-        } catch {}
-      }
-      // fallback: tentar extrair do DTO da entrevista
+  // --------- atualização (edição) ---------
+  const updateEntrevista = async (id) => {
+    const payload = { ...formData, id };
+    const candidates = [`/api/entrevistas/${id}`, `/api/Entrevistas/${id}`];
+    for (const url of candidates) {
       try {
-        const det = await axios.get(`${base}/${id}`);
-        const dto = (det && det.data) || {};
-        const norm = normalizeMc(dto);
-        if (norm) return { norm, raw: { step: 'poll-entrevista-fallback', attempt, dto, post: postData } };
+        const r = await axios.put(url, payload);
+        return { ok: r && (r.status === 204 || r.status === 200), url };
       } catch {}
-      await sleep(800);
     }
-    return { norm: null, raw: { step: 'poll-timeout', post: postData } };
+    return { ok: false };
   };
 
-  // --------- tentativa de persistir o MC (se o backend tiver rota) ---------
-  const persistMc = async (base, id, payload) => {
-    if (!payload) return;
-    const candidates = [
-      { method: 'post', url: `${base}/${id}/cocomo/monte-carlo/save` },
-      { method: 'put', url: `${base}/${id}/cocomo/monte-carlo` },
-      { method: 'post', url: `${base}/${id}/cocomo/monte-carlo/persist` },
-      { method: 'post', url: `${base}/${id}/cocomo/monte-carlo/salvar` },
-    ];
-    for (const c of candidates) {
+  // --------- carregar detalhes para edição ---------
+  useEffect(() => {
+    if (!editId) return;
+
+    (async () => {
       try {
-        if (c.method === 'post') {
-          await axios.post(c.url, payload);
-          return;
+        let detail = null;
+        try {
+          const r = await axios.get(`/api/Entrevistas/${editId}/detalhe`);
+          detail = r && r.data;
+        } catch {
+          const r2 = await axios.get(`/api/Entrevistas/${editId}`);
+          detail = r2 && r2.data;
         }
-        if (c.method === 'put') {
-          await axios.put(c.url, payload);
-          return;
-        }
-      } catch (e) {}
-    }
-  };
+        if (!detail) return;
+
+        setFormData((prev) => ({
+          ...prev,
+          nomeEntrevista: detail.nomeEntrevista || '',
+          nomeEntrevistado: detail.nomeEntrevistado || '',
+          nomeEntrevistador: detail.nomeEntrevistador || '',
+          dataEntrevista: (detail.dataEntrevista || '').slice(0, 10),
+          tipoEntrada: detail.tipoEntrada ?? prev.tipoEntrada,
+          linguagem: detail.linguagem ?? '',
+          valorKloc: detail.tamanhoKloc ?? prev.valorKloc,
+          // Os quatro abaixo só se seu detalhe trouxer campos diretos:
+          entradas: detail.entradas ?? prev.entradas ?? 0,
+          saidas: detail.saidas ?? prev.saidas ?? 0,
+          leitura: detail.leitura ?? prev.leitura ?? 0,
+          gravacao: detail.gravacao ?? prev.gravacao ?? 0,
+          scaleFactors: detail.scaleFactors ?? prev.scaleFactors,
+          effortMultipliers: detail.effortMultipliers ?? prev.effortMultipliers,
+          // funcionalidades: detail.funcionalidades ?? prev.funcionalidades,
+        }));
+      } catch (e) {
+        console.error('[Editar] Falha ao carregar detalhe', e);
+      }
+    })();
+  }, [editId]);
 
   // --------- validação triangular ---------
   useEffect(() => {
@@ -314,6 +319,19 @@ const InterviewForm = () => {
     setMcResumo(null);
     setMcRaw(null);
 
+    // EDIÇÃO: apenas atualiza e sai (sem MC aqui, mas podemos adicionar se quiser)
+    if (editId) {
+      const upd = await updateEntrevista(editId);
+      if (!upd.ok) {
+        alert('Falha ao atualizar entrevista.');
+        return;
+      }
+      alert('Entrevista atualizada com sucesso!');
+      navigate(`/entrevistas/${editId}`, { state: { flash: 'Entrevista atualizada com sucesso!' } });
+      return;
+    }
+
+    // CRIAÇÃO (mantém o fluxo com Monte Carlo)
     if (useMonteCarlo && mcMode === 'tri' && triError) {
       alert('Parâmetros triangulares inválidos. ' + triError);
       return;
@@ -383,7 +401,7 @@ const InterviewForm = () => {
         if (norm) {
           const model = { ...norm, _meta: { iterations: mcBody.iterations, a, b, c } };
           setMcResumo(model);
-          saveMcLocal(id, model); // cache local
+          saveMcLocal(id, model);
           try {
             await persistMc(base, id, norm);
           } catch (e) {}
@@ -414,7 +432,7 @@ const InterviewForm = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-4">
-      <h2 className="text-2xl font-bold mb-6">Nova Entrevista</h2>
+      <h2 className="text-2xl font-bold mb-6">{editId ? 'Editar Entrevista' : 'Nova Entrevista'}</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
@@ -734,6 +752,7 @@ const InterviewForm = () => {
                   </label>
                   <select
                     className="border-2 p-2 w-full"
+                    value={selectedNivel('ScaleFactor', contexto) || ''}
                     onChange={(e) => handleFatorChange('ScaleFactor', contexto, e.target.value)}
                   >
                     <option value="">Selecione o nível</option>
@@ -756,6 +775,7 @@ const InterviewForm = () => {
                   </label>
                   <select
                     className="border-2 p-2 w-full"
+                    value={selectedNivel('EffortMultiplier', contexto) || ''}
                     onChange={(e) => handleFatorChange('EffortMultiplier', contexto, e.target.value)}
                   >
                     <option value="">Selecione o nível</option>
@@ -828,7 +848,7 @@ const InterviewForm = () => {
             )}
 
             <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded mt-4">
-              Salvar
+              {editId ? 'Salvar alterações' : 'Salvar'}
             </button>
           </form>
         </div>

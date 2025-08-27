@@ -142,5 +142,15 @@ namespace Entrevistas.API.Controllers
             var vm = await _service.RecalcularCosmicAsync(id);
             return Ok(vm);
         }
-    }
+
+		[HttpGet("{id:guid}/detalhe")]
+		[ProducesResponseType(typeof(EntrevistaDetailDto), 200)]
+		[ProducesResponseType(404)]
+		public async Task<IActionResult> ObterDetalheAsync([FromRoute] Guid id, CancellationToken ct)
+		{
+			var dto = await _service.ObterDetalheAsync(id, ct);
+			if (dto is null) return NotFound();
+			return Ok(dto);
+		}
+	}
 }

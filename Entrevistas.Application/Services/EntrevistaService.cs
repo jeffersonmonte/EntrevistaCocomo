@@ -333,92 +333,84 @@ namespace Entrevistas.Application.Services
         }
 
         // =====================================================================================
-        // UPDATE / DELETE
+        // UPDATE
         // =====================================================================================
         public async Task<bool> UpdateAsync(UpdateEntrevistaRequest request, CancellationToken ct = default)
         {
-            var ent = await _db.Entrevistas
-                .Include(e => e.ScaleFactors)
-                .Include(e => e.EffortMultipliers)
-                .Include(e => e.Funcionalidades).ThenInclude(f => f.Medicao)
-                .FirstOrDefaultAsync(e => e.Id == request.Id, ct);
+			// Carregue a entrevista com filhos TRACKED
+			var ent = await _db.Entrevistas
+				.Include(e => e.ScaleFactors)
+				.Include(e => e.EffortMultipliers)
+				.FirstOrDefaultAsync(e => e.Id == request.Id, ct);
 
-            if (ent == null) return false;
+			if (ent is null) return false;
 
-            // Básicos
-            ent.NomeEntrevista = request.NomeEntrevista.Trim();
-            ent.NomeEntrevistado = request.NomeEntrevistado.Trim();
-            ent.NomeEntrevistador = request.NomeEntrevistador.Trim();
-            ent.DataEntrevista = request.DataEntrevista;
-            ent.TipoEntrada = request.TipoEntrada;
-            ent.Linguagem = string.IsNullOrWhiteSpace(request.Linguagem) ? null : request.Linguagem!.Trim();
+			// Atualize campos básicos da entrevista
+			ent.NomeEntrevista = request.NomeEntrevista?.Trim();
+			ent.NomeEntrevistado = request.NomeEntrevistado?.Trim();
+			ent.NomeEntrevistador = request.NomeEntrevistador?.Trim();
+			ent.DataEntrevista = request.DataEntrevista;
+			ent.TipoEntrada = (TipoEntradaTamanho)request.TipoEntrada;
+			ent.Linguagem = request.Linguagem;
+			ent.TamanhoKloc = request.ValorKloc ?? ent.TamanhoKloc;
+			// ... (demais campos diretos)
 
-            // Substitui SF/EM
-            _db.ScaleFactors.RemoveRange(ent.ScaleFactors);
-            _db.EffortMultipliers.RemoveRange(ent.EffortMultipliers);
+			// 1) Remover os atuais (de fato) e salvar para “limpar” o estado
+			if (ent.EffortMultipliers?.Count > 0)
+				_db.EffortMultipliers.RemoveRange(ent.EffortMultipliers);
+			if (ent.ScaleFactors?.Count > 0)
+				_db.ScaleFactors.RemoveRange(ent.ScaleFactors);
 
-            ent.ScaleFactors = (request.ScaleFactors ?? new List<ScaleFactorDto>()).Select(s =>
-                new ScaleFactor { Id = Guid.NewGuid(), EntrevistaId = ent.Id, Nome = s.Nome, Nivel = s.Nivel, Valor = s.Valor }).ToList();
+			await _db.SaveChangesAsync(ct);
 
-            ent.EffortMultipliers = (request.EffortMultipliers ?? new List<EffortMultiplierDto>()).Select(m =>
-                new EffortMultiplier { Id = Guid.NewGuid(), EntrevistaId = ent.Id, Nome = m.Nome, Nivel = m.Nivel, Valor = m.Valor }).ToList();
+			// 2) Montar NOVAS listas a partir do request, SEM id reaproveitado
+			var novosEM = (request.EffortMultipliers ?? Enumerable.Empty<EffortMultiplierDto>())
+				.Select(m => new EffortMultiplier
+				{
+					Id = Guid.NewGuid(),                 // garante INSERT
+					EntrevistaId = ent.Id,
+					Nome = m.Nome,
+					Nivel = m.Nivel,
+					Valor = m.Valor
+				})
+				.ToList();
 
-            // Se vierem funcionalidades no request, substitui por completo
-            if (request.Funcionalidades is { Count: > 0 })
-            {
-                _db.MedicoesCosmic.RemoveRange(ent.Funcionalidades.Where(f => f.Medicao != null).Select(f => f.Medicao!));
-                _db.Funcionalidades.RemoveRange(ent.Funcionalidades);
+			var novosSF = (request.ScaleFactors ?? Enumerable.Empty<ScaleFactorDto>())
+				.Select(s => new ScaleFactor
+				{
+					Id = Guid.NewGuid(),                 // garante INSERT
+					EntrevistaId = ent.Id,
+					Nome = s.Nome,
+					Nivel = s.Nivel,
+					Valor = s.Valor
+				})
+				.ToList();
 
-                ent.Funcionalidades = request.Funcionalidades.Select(f =>
-                {
-                    var fid = Guid.NewGuid();
-                    return new Funcionalidade
-                    {
-                        Id = fid,
-                        EntrevistaId = ent.Id,
-                        Nome = f.Nome,
-                        Template = f.Template,
-                        Observacoes = f.Observacoes,
-                        Medicao = new MedicaoCosmic
-                        {
-                            Id = Guid.NewGuid(),
-                            FuncionalidadeId = fid,
-                            EntryE = f.E,
-                            ExitX = f.X,
-                            ReadR = f.R,
-                            WriteW = f.W
-                        }
-                    };
-                }).ToList();
-            }
+			// 3) Adicionar explicitamente como ADDED (evita UPDATE acidental)
+			if (novosEM.Count > 0) _db.EffortMultipliers.AddRange(novosEM);
+			if (novosSF.Count > 0) _db.ScaleFactors.AddRange(novosSF);
 
-            // Recalcula TotalCFP
-            if (ent.Funcionalidades.Any())
-                ent.TotalCFP = ent.Funcionalidades.Sum(f => (f.Medicao?.EntryE ?? 0) + (f.Medicao?.ExitX ?? 0) + (f.Medicao?.ReadR ?? 0) + (f.Medicao?.WriteW ?? 0));
-            else
-                ent.TotalCFP = request.Entradas + request.Saidas + request.Leitura + request.Gravacao;
+			// (Opcional) se preferir manter via navegação, também pode:
+			// ent.EffortMultipliers = novosEM;
+			// ent.ScaleFactors = novosSF;
+			// _db.Entry(ent).State = EntityState.Modified; // só para os campos scalar da Entrevista
 
-            // KLOC: regras
-            if (request.ValorKloc.HasValue && request.ValorKloc.Value > 0)
-            {
-                ent.TamanhoKloc = Math.Round(request.ValorKloc.Value, 6, MidpointRounding.AwayFromZero);
-            }
-            else if (ent.TipoEntrada == TipoEntradaTamanho.Cosmic)
-            {
-                var fator = await ObterFatorConversaoAsync("COSMIC", "Geral", ct);
-                ent.TamanhoKloc = Math.Round(ent.TotalCFP * fator, 6, MidpointRounding.AwayFromZero);
-            }
-            else if (ent.TipoEntrada == TipoEntradaTamanho.PontosDeFuncao)
-            {
-                // sem PF explícito aqui; mantém o atual
-            }
+			// 4) Recalcule derivadas (seu método atual já fazia isso)
+			ent.SomaScaleFactors = novosSF.Sum(x => (decimal)x.Valor);
+			ent.ProdutoEffortMultipliers = novosEM.Aggregate(1m, (acc, x) => acc * (decimal)x.Valor);
 
-            await RecalcularCocomoEarlyDesignAsync(ent, ct);
-            await _db.SaveChangesAsync(ct);
-            return true;
-        }
+			// TODO: aplicar fórmula de esforço/prazo (A,B,C,D) conforme seus parâmetros
+			// ent.EsforcoPM = ...
+			// ent.PrazoMeses = ...
 
-        public async Task<bool> DeleteAsync(DeleteEntrevistaRequest request, CancellationToken ct = default)
+			await RecalcularCocomoEarlyDesignAsync(ent, ct);
+
+			await _db.SaveChangesAsync(ct);
+			return true;
+
+		}
+
+		public async Task<bool> DeleteAsync(DeleteEntrevistaRequest request, CancellationToken ct = default)
         {
             var ent = await _db.Entrevistas.FirstOrDefaultAsync(e => e.Id == request.Id, ct);
             if (ent == null) return false;
@@ -492,5 +484,49 @@ namespace Entrevistas.Application.Services
             ent.EsforcoPM = Math.Round(p.A * (decimal)Math.Pow((double)ent.TamanhoKloc, (double)expoente) * ent.ProdutoEffortMultipliers, 6, MidpointRounding.AwayFromZero);
             ent.PrazoMeses = Math.Round(p.C * (decimal)Math.Pow((double)ent.EsforcoPM, (double)p.D), 6, MidpointRounding.AwayFromZero);
         }
-    }
+
+		public async Task<EntrevistaDetailDto?> ObterDetalheAsync(Guid id, CancellationToken ct = default)
+		{
+			var ent = await _db.Entrevistas
+				.Include(e => e.ScaleFactors)
+				.Include(e => e.EffortMultipliers)
+				.Include(e => e.Funcionalidades).ThenInclude(f => f.Medicao)
+				.AsNoTracking()
+				.FirstOrDefaultAsync(e => e.Id == id, ct);
+
+			if (ent is null) return null;
+
+			return new EntrevistaDetailDto
+			{
+				Id = ent.Id,
+				NomeEntrevista = ent.NomeEntrevista,
+				NomeEntrevistado = ent.NomeEntrevistado,
+				NomeEntrevistador = ent.NomeEntrevistador,
+				DataEntrevista = ent.DataEntrevista,
+				TipoEntrada = (int)ent.TipoEntrada,
+				Linguagem = ent.Linguagem,
+				TamanhoKloc = ent.TamanhoKloc,
+				SomaScaleFactors = ent.SomaScaleFactors,
+				ProdutoEffortMultipliers = ent.ProdutoEffortMultipliers,
+				EsforcoPM = ent.EsforcoPM,
+				PrazoMeses = ent.PrazoMeses,
+				TotalCFP = ent.TotalCFP,
+				ScaleFactors = ent.ScaleFactors
+					.Select(s => new ScaleFactorDto(s.Nome, s.Nivel, s.Valor)).ToList(),
+				EffortMultipliers = ent.EffortMultipliers
+					.Select(m => new EffortMultiplierDto(m.Nome, m.Nivel, m.Valor)).ToList(),
+				Funcionalidades = ent.Funcionalidades.Select(
+                    f => new FuncInlineDto
+				        {
+						    Nome = f.Nome,
+					        Template = f.Template,
+					        Observacoes = f.Observacoes,
+					        E = f.Medicao?.EntryE ?? 0,
+					        X = f.Medicao?.ExitX ?? 0,
+					        R = f.Medicao?.ReadR ?? 0,
+					        W = f.Medicao?.WriteW ?? 0
+				        }).ToList()
+			};
+		}
+	}
 }

@@ -373,6 +373,37 @@
     ]
   },
   {
+    "ContainingType": "Entrevistas.API.Controllers.EntrevistasController",
+    "Method": "ObterDetalheAsync",
+    "RelativePath": "api/Entrevistas/{id}/detalhe",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Entrevistas.Application.DTOs.EntrevistaDetailDto",
+        "MediaTypes": [
+          "application/json"
+        ],
+        "StatusCode": 200
+      },
+      {
+        "Type": "Microsoft.AspNetCore.Mvc.ProblemDetails",
+        "MediaTypes": [
+          "application/json"
+        ],
+        "StatusCode": 404
+      }
+    ]
+  },
+  {
     "ContainingType": "Entrevistas.WebApi.Controllers.EntrevistasCosmicController",
     "Method": "AddFunc",
     "RelativePath": "api/entrevistas/{id}/funcionalidades",

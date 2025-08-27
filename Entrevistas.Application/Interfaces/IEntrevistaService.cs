@@ -20,5 +20,6 @@ namespace Entrevistas.Application.Interfaces
         /// </summary>
         Task<bool> DeleteAsync(DeleteEntrevistaRequest request, CancellationToken ct = default);
         Task<bool> UpdateAsync(UpdateEntrevistaRequest request, CancellationToken ct = default);
-    }
+		Task<EntrevistaDetailDto?> ObterDetalheAsync(Guid id, CancellationToken ct = default);
+	}
 }

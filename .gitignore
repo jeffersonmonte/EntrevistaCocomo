@@ -119,3 +119,4 @@
 /Entrevistas.Infrastructure/obj/Debug/net8.0
 /.vs/Entrevistas/CopilotIndices/17.14.995.13737/CodeChunks.db
 /.vs/Entrevistas/CopilotIndices/17.14.995.13737/CodeChunks.db-wal
+/Entrevistas.WebApi/appsettings.json

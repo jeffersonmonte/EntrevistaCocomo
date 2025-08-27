@@ -1,13 +1,8 @@
 ﻿using Entrevistas.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Entrevistas.Infrastructure.Database.Configurations
+namespace Entrevistas.Infrastructure.Configurations
 {
     public class MedicaoCosmicConfig : IEntityTypeConfiguration<MedicaoCosmic>
     {
@@ -15,10 +10,13 @@ namespace Entrevistas.Infrastructure.Database.Configurations
         {
             b.ToTable("MedicoesCosmic");
             b.HasKey(x => x.Id);
-            b.Property(x => x.EntryE).HasDefaultValue(0);
-            b.Property(x => x.ExitX).HasDefaultValue(0);
-            b.Property(x => x.ReadR).HasDefaultValue(0);
-            b.Property(x => x.WriteW).HasDefaultValue(0);
+
+            b.Property(x => x.EntryE).IsRequired();
+            b.Property(x => x.ExitX).IsRequired();
+            b.Property(x => x.ReadR).IsRequired();
+            b.Property(x => x.WriteW).IsRequired();
+
+            b.HasIndex(x => x.FuncionalidadeId).IsUnique();
         }
     }
 }

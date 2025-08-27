@@ -1,106 +1,107 @@
-
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import axios from 'axios';
-
-const MC_CACHE_PREFIX = 'mcResumo:';
-const hasMcCache = (id) => {
-  try { return !!localStorage.getItem(MC_CACHE_PREFIX + id); } catch { return false; }
-};
-
-function fmtDateBR(iso) {
-  try {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return String(iso);
-    return d.toLocaleDateString('pt-BR'); // DD/MM/AAAA
-  } catch {
-    return String(iso || '—');
-  }
-}
+// src/pages/ListaEntrevistas.jsx
+import React, { useEffect, useState } from "react";
+import { listarEntrevistas, excluirEntrevista } from "../lib/api";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function ListaEntrevistas() {
-  const [items, setItems] = useState([]);
-  const [erro, setErro] = useState(null);
+  const [itens, setItens] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  async function carregar() {
+    setLoading(true);
+    try {
+      const data = await listarEntrevistas();
+      setItens(data || []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onDelete(id) {
+    if (!window.confirm("Confirma excluir esta entrevista? Essa ação não pode ser desfeita.")) return;
+    await excluirEntrevista(id);
+    await carregar();
+  }
+
+  function onEdit(id) {
+    // Reuso do InterviewForm: /nova-entrevista?id=<GUID> (edição)
+    navigate(`/nova-entrevista?id=${encodeURIComponent(id)}`);
+  }
 
   useEffect(() => {
-    let base = '/api/entrevistas';
-    async function load() {
-      setLoading(true);
-      setErro(null);
-      try {
-        const r = await axios.get(base);
-        setItems((r && r.data) || []);
-      } catch (e1) {
-        base = '/api/Entrevistas';
-        try {
-          const r2 = await axios.get(base);
-          setItems((r2 && r2.data) || []);
-        } catch (e2) {
-          setErro('Falha ao carregar entrevistas.');
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    carregar();
   }, []);
 
-  if (loading) return <div className="p-4">Carregando...</div>;
-  if (erro) return <div className="p-4 text-red-600">{erro}</div>;
-
   return (
-    <div className="max-w-6xl mx-auto p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-2xl font-bold">Entrevistas</h2>
-        <Link to="/entrevistas/nova" className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm">Nova</Link>
+    <div className="p-6 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-semibold">Entrevistas</h1>
+        <div className="flex gap-2">
+          <Link to="/nova-entrevista" className="px-4 py-2 rounded bg-blue-600 text-white hover:opacity-90">
+            Nova entrevista
+          </Link>
+        </div>
       </div>
 
-      <div className="overflow-x-auto border rounded">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-50 text-gray-700">
-            <tr>
-              <th className="text-left px-3 py-2 w-28">Data</th>
-              <th className="text-left px-3 py-2">Nome</th>
-              <th className="text-left px-3 py-2 w-24">Linguagem</th>
-              <th className="text-left px-3 py-2 w-28">KLOC</th>
-              <th className="text-left px-3 py-2 w-28">PF</th>
-              <th className="text-left px-3 py-2 w-28">MC</th>
-              <th className="text-left px-3 py-2 w-28">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it) => {
-              const id = it.id || it.Id;
-              const hasCache = hasMcCache(id);
-              const kloc = it.tamanhoKloc ?? it.valorKloc ?? '—';
-              const pf = it.pontosDeFuncao ?? it.pontos ?? '—';
-              return (
-                <tr key={id} className="border-t hover:bg-gray-50">
-                  <td className="px-3 py-2">{fmtDateBR(it.dataEntrevista)}</td>
-                  <td className="px-3 py-2">{it.nomeEntrevista || it.nome || '—'}</td>
-                  <td className="px-3 py-2">{it.linguagem || '—'}</td>
-                  <td className="px-3 py-2">{kloc !== undefined ? kloc : '—'}</td>
-                  <td className="px-3 py-2">{pf !== undefined ? pf : '—'}</td>
-                  <td className="px-3 py-2">
-                    {hasCache ? (
-                      <span className="inline-flex items-center gap-1 text-green-700">
-                        <span className="w-2 h-2 rounded-full bg-green-600 inline-block" /> em cache
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    <Link to={`/entrevistas/${id}`} className="text-blue-700 underline">Detalhes</Link>
+      {loading ? (
+        <p>Carregando…</p>
+      ) : itens.length === 0 ? (
+        <p>Nenhum registro.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full border text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="p-2 text-left">Nome</th>
+                <th className="p-2 text-left">Entrevistado</th>
+                <th className="p-2 text-left">Entrevistador</th>
+                <th className="p-2 text-left">Data</th>
+                <th className="p-2 text-right">KLOC</th>
+                <th className="p-2 text-right">PM</th>
+                <th className="p-2 text-right">Meses</th>
+                <th className="p-2 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {itens.map((x) => (
+                <tr key={x.id} className="border-t">
+                  <td className="p-2">{x.nomeEntrevista}</td>
+                  <td className="p-2">{x.nomeEntrevistado}</td>
+                  <td className="p-2">{x.nomeEntrevistador}</td>
+                  <td className="p-2">{new Date(x.dataEntrevista).toLocaleDateString()}</td>
+                  <td className="p-2 text-right">{Number(x.tamanhoKloc || 0).toFixed(2)}</td>
+                  <td className="p-2 text-right">{Number(x.esforcoPM || 0).toFixed(2)}</td>
+                  <td className="p-2 text-right">{Number(x.prazoMeses || 0).toFixed(2)}</td>
+                  <td className="p-2 text-right">
+                    <Link
+                      to={`/entrevistas/${x.id}`}
+                      className="px-2 py-1 text-slate-700 hover:underline"
+                      title="Ver detalhes"
+                    >
+                      Ver
+                    </Link>
+                    <button
+                      onClick={() => onEdit(x.id)}
+                      className="ml-2 px-2 py-1 text-blue-700 hover:underline"
+                      title="Editar"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => onDelete(x.id)}
+                      className="ml-2 px-2 py-1 text-red-700 hover:underline"
+                      title="Excluir"
+                    >
+                      Excluir
+                    </button>
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

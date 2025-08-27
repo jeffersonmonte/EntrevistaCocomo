@@ -1,0 +1,134 @@
+/* ===========================================================
+   SCHEMA + SEED (NORMALIZADO)
+   Banco: SQL Server (T-SQL)
+   ===========================================================*/
+
+SET NOCOUNT ON;
+BEGIN TRAN;
+
+--------------------------------------------------------------
+-- 1) Tabelas principais
+--------------------------------------------------------------
+IF OBJECT_ID('dbo.Entrevistas', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Entrevistas
+    (
+        Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_Entrevistas PRIMARY KEY,
+        NomeEntrevista NVARCHAR(120) NOT NULL,
+        NomeEntrevistado NVARCHAR(100) NOT NULL,
+        NomeEntrevistador NVARCHAR(100) NOT NULL,
+        DataEntrevista DATE NOT NULL,
+        TipoEntrada INT NOT NULL,
+        Linguagem NVARCHAR(100) NULL,
+        TotalCFP INT NOT NULL DEFAULT(0),
+        -- RESULTADOS (recalculáveis)
+        EsforcoPM DECIMAL(18,6) NULL,
+        PrazoMeses DECIMAL(18,6) NULL
+    );
+END;
+
+IF OBJECT_ID('dbo.ScaleFactors', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ScaleFactors
+    (
+        Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_ScaleFactors PRIMARY KEY,
+        EntrevistaId UNIQUEIDENTIFIER NOT NULL,
+        Nome NVARCHAR(50) NOT NULL,     -- PREC, FLEX, RESL, TEAM, PMAT
+        Nivel NVARCHAR(50) NOT NULL,    
+        Valor DECIMAL(5,2) NOT NULL,    
+        CONSTRAINT FK_SF_Entrevistas FOREIGN KEY (EntrevistaId)
+            REFERENCES dbo.Entrevistas(Id) ON DELETE CASCADE,
+        CONSTRAINT UQ_SF UNIQUE (EntrevistaId, Nome)
+    );
+END;
+
+IF OBJECT_ID('dbo.EffortMultipliers', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.EffortMultipliers
+    (
+        Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_EffortMultipliers PRIMARY KEY,
+        EntrevistaId UNIQUEIDENTIFIER NOT NULL,
+        Nome NVARCHAR(50) NOT NULL,     
+        Nivel NVARCHAR(50) NOT NULL,    
+        Valor DECIMAL(5,3) NOT NULL,    
+        CONSTRAINT FK_EM_Entrevistas FOREIGN KEY (EntrevistaId)
+            REFERENCES dbo.Entrevistas(Id) ON DELETE CASCADE,
+        CONSTRAINT UQ_EM UNIQUE (EntrevistaId, Nome)
+    );
+END;
+
+IF OBJECT_ID('dbo.Funcionalidades', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Funcionalidades
+    (
+        Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_Funcionalidades PRIMARY KEY,
+        EntrevistaId UNIQUEIDENTIFIER NOT NULL,
+        Nome NVARCHAR(200) NOT NULL,
+        Template NVARCHAR(20) NULL,
+        Observacoes NVARCHAR(MAX) NULL,
+        CONSTRAINT FK_Func_Entrevistas FOREIGN KEY (EntrevistaId)
+            REFERENCES dbo.Entrevistas(Id) ON DELETE CASCADE,
+        CONSTRAINT UQ_Func UNIQUE (EntrevistaId, Nome)
+    );
+END;
+
+IF OBJECT_ID('dbo.MedicoesCosmic', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.MedicoesCosmic
+    (
+        Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_MedicoesCosmic PRIMARY KEY,
+        FuncionalidadeId UNIQUEIDENTIFIER NOT NULL,
+        EntryE INT NOT NULL DEFAULT(0),
+        ExitX INT NOT NULL DEFAULT(0),
+        ReadR INT NOT NULL DEFAULT(0),
+        WriteW INT NOT NULL DEFAULT(0),
+        CONSTRAINT FK_Medicoes_Func FOREIGN KEY (FuncionalidadeId)
+            REFERENCES dbo.Funcionalidades(Id) ON DELETE CASCADE,
+        CONSTRAINT UQ_Medicoes_Func UNIQUE (FuncionalidadeId)
+    );
+END;
+
+--------------------------------------------------------------
+-- 2) Tabelas auxiliares
+--------------------------------------------------------------
+IF OBJECT_ID('dbo.ParametrosCocomo', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ParametrosCocomo
+    (
+        Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_ParametrosCocomo PRIMARY KEY,
+        A DECIMAL(8,4) NOT NULL,
+        B DECIMAL(8,4) NOT NULL,
+        C DECIMAL(8,4) NOT NULL,
+        D DECIMAL(8,4) NOT NULL
+    );
+END;
+
+IF OBJECT_ID('dbo.ConversoesTamanho', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ConversoesTamanho
+    (
+        Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_ConversoesTamanho PRIMARY KEY,
+        TipoEntrada NVARCHAR(20) NOT NULL,   
+        Contexto NVARCHAR(100) NOT NULL,     
+        FatorConversao DECIMAL(12,6) NOT NULL,
+        CONSTRAINT UQ_Conversoes UNIQUE (TipoEntrada, Contexto)
+    );
+END;
+
+IF OBJECT_ID('dbo.FatoresConversao', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.FatoresConversao
+    (
+        Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_FatoresConversao PRIMARY KEY,
+        TipoEntrada NVARCHAR(50) NOT NULL,    
+        Contexto NVARCHAR(50) NOT NULL,       
+        Nivel NVARCHAR(50) NOT NULL,          
+        FatorConversao DECIMAL(18,6) NOT NULL,
+        NomeCompleto NVARCHAR(150) NULL,
+        Descricao NVARCHAR(500) NULL,
+        CONSTRAINT UQ_Fatores UNIQUE (TipoEntrada, Contexto, Nivel)
+    );
+END;
+
+COMMIT TRAN;
+PRINT 'Schema normalizado e alinhado ao AppDbContext.';

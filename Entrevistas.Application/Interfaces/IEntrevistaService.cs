@@ -1,6 +1,5 @@
-using Entrevistas.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
-﻿using Entrevistas.Application.DTOs;
+using Entrevistas.Application.DTOs;
+using Entrevistas.Application.DTOs.Entrevistas;
 
 namespace Entrevistas.Application.Interfaces
 {
@@ -14,5 +13,12 @@ namespace Entrevistas.Application.Interfaces
         Task<IReadOnlyList<FuncionalidadeVm>> ListarFuncionalidadesAsync(Guid entrevistaId);
         Task<RecalculoCosmicVm> RecalcularCosmicAsync(Guid entrevistaId);
         Task<CreateEntrevistaResult> CriarEntrevistaComCosmicAsync(CreateEntrevistaDto dto);
+
+        /// <summary>
+        /// Exclui a entrevista e todas as dependências (SF/EM/Funcionalidades/MedicoesCosmic) via cascade.
+        /// Retorna true se encontrou e excluiu; false se não encontrada.
+        /// </summary>
+        Task<bool> DeleteAsync(DeleteEntrevistaRequest request, CancellationToken ct = default);
+        Task<bool> UpdateAsync(UpdateEntrevistaRequest request, CancellationToken ct = default);
     }
 }

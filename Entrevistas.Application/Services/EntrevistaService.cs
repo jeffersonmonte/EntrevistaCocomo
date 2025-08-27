@@ -1,4 +1,10 @@
-﻿using Entrevistas.Application.DTOs;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Entrevistas.Application.DTOs;
+using Entrevistas.Application.DTOs.Entrevistas;
 using Entrevistas.Application.Interfaces;
 using Entrevistas.Domain.Entities;
 using Entrevistas.Domain.Enums;
@@ -9,134 +15,117 @@ namespace Entrevistas.Application.Services
 {
     public class EntrevistaService : IEntrevistaService
     {
-        private readonly AppDbContext _context;
+        private readonly AppDbContext _db;
 
-        public EntrevistaService(AppDbContext context)
-        {
-            _context = context;
-        }
+        public EntrevistaService(AppDbContext db) => _db = db;
 
+        // =====================================================================================
+        // CREATE (fluxo com EntrevistaInputDto)
+        // =====================================================================================
         public async Task<EntrevistaOutputDto> CriarEntrevistaAsync(EntrevistaInputDto dto)
         {
-            var parametros = await _context.ParametrosCocomo.FirstOrDefaultAsync()
-                ?? throw new InvalidOperationException("Parâmetros do COCOMO não configurados.");
+            // Determina KLOC conforme TipoEntrada
+            decimal kloc = 0m;
+            int totalCFP = 0;
 
-            decimal kloc = dto.TipoEntrada switch
+            if (dto.TipoEntrada == TipoEntradaTamanho.KLOC)
             {
-                TipoEntradaTamanho.KLOC => dto.ValorKloc ?? throw new ArgumentException("ValorKloc é obrigatório."),
-                TipoEntradaTamanho.PontosDeFuncao => await ConverterFPParaKloc(dto),
-                TipoEntradaTamanho.Cosmic => await ConverterCosmicParaKloc(dto),
-                _ => throw new NotSupportedException("Tipo de entrada não suportado.")
-            };
+                kloc = (dto.ValorKloc ?? 0m);
+            }
+            else if (dto.TipoEntrada == TipoEntradaTamanho.PontosDeFuncao)
+            {
+                if (dto.ValorKloc.HasValue && dto.ValorKloc.Value > 0)
+                {
+                    kloc = dto.ValorKloc.Value;
+                }
+                else
+                {
+                    var fator = await ObterFatorConversaoAsync("PF", dto.Linguagem, ct: default);
+                    var pf = (dto.PontosDeFuncao ?? 0);
+                    kloc = Math.Round(pf * fator, 6, MidpointRounding.AwayFromZero);
+                }
+            }
+            else if (dto.TipoEntrada == TipoEntradaTamanho.Cosmic)
+            {
+                var e = dto.Entradas ?? 0;
+                var x = dto.Saidas ?? 0;
+                var r = dto.Leitura ?? 0;
+                var w = dto.Gravacao ?? 0;
+                totalCFP = e + x + r + w;
 
-            decimal somaSF = dto.ScaleFactors.Sum(f => f.Valor);
-            decimal produtoEM = dto.EffortMultipliers.Aggregate(1m, (acc, e) => acc * e.Valor);
+                var fator = await ObterFatorConversaoAsync("COSMIC", "Geral", ct: default);
+                kloc = Math.Round(totalCFP * fator, 6, MidpointRounding.AwayFromZero);
+            }
 
-            decimal esforco = parametros.A * (decimal)Math.Pow((double)kloc, (double)(parametros.B + 0.01m * somaSF)) * produtoEM;
-            decimal prazo = parametros.C * (decimal)Math.Pow((double)esforco, (double)parametros.D);
+            // Parâmetros COCOMO
+            var parametros = await _db.ParametrosCocomo.AsNoTracking().FirstOrDefaultAsync()
+                            ?? new ParametrosCocomo { A = 2.94m, B = 0.91m, C = 3.67m, D = 0.28m };
 
-            var entrevista = new Domain.Entities.Entrevista
+            decimal somaSF = (dto.ScaleFactors ?? new()).Sum(f => f.Valor);
+            decimal produtoEM = (dto.EffortMultipliers ?? new()).Aggregate(1m, (acc, e) => acc * e.Valor);
+
+            var expoente = parametros.B + 0.01m * somaSF;
+            decimal esforco = Math.Round(parametros.A * (decimal)Math.Pow((double)kloc, (double)expoente) * produtoEM, 6, MidpointRounding.AwayFromZero);
+            decimal prazo = Math.Round(parametros.C * (decimal)Math.Pow((double)esforco, (double)parametros.D), 6, MidpointRounding.AwayFromZero);
+
+            var ent = new Domain.Entities.Entrevista
             {
                 Id = Guid.NewGuid(),
-				NomeEntrevista = dto.NomeEntrevista,
-				NomeEntrevistado = dto.NomeEntrevistado,
-                NomeEntrevistador = dto.NomeEntrevistador,
+                NomeEntrevista = dto.NomeEntrevista.Trim(),
+                NomeEntrevistado = dto.NomeEntrevistado.Trim(),
+                NomeEntrevistador = dto.NomeEntrevistador.Trim(),
                 DataEntrevista = dto.DataEntrevista,
                 TipoEntrada = dto.TipoEntrada,
-                Linguagem = dto.Linguagem,
-                TamanhoKloc = Math.Round(kloc, 2),
+                Linguagem = string.IsNullOrWhiteSpace(dto.Linguagem) ? null : dto.Linguagem!.Trim(),
+                TamanhoKloc = kloc,
                 SomaScaleFactors = somaSF,
-                ProdutoEffortMultipliers = Math.Round(produtoEM, 3),
-                EsforcoPM = Math.Round(esforco, 2),
-                PrazoMeses = Math.Round(prazo, 2),
-                ScaleFactors = dto.ScaleFactors.Select(f => new ScaleFactor
-                {
-                    Id = Guid.NewGuid(),
-                    Nome = f.Nome,
-                    Nivel = f.Nivel,
-                    Valor = f.Valor
-                }).ToList(),
-                EffortMultipliers = dto.EffortMultipliers.Select(e => new EffortMultiplier
-                {
-                    Id = Guid.NewGuid(),
-                    Nome = e.Nome,
-                    Nivel = e.Nivel,
-                    Valor = e.Valor
-                }).ToList()
+                ProdutoEffortMultipliers = produtoEM,
+                EsforcoPM = esforco,
+                PrazoMeses = prazo,
+                TotalCFP = totalCFP
             };
 
-            _context.Entrevistas.Add(entrevista);
-            await _context.SaveChangesAsync();
+            // Itens relacionados
+            ent.ScaleFactors = (dto.ScaleFactors ?? new())
+                .Select(s => new ScaleFactor { Id = Guid.NewGuid(), EntrevistaId = ent.Id, Nome = s.Nome, Nivel = s.Nivel, Valor = s.Valor })
+                .ToList();
+
+            ent.EffortMultipliers = (dto.EffortMultipliers ?? new())
+                .Select(m => new EffortMultiplier { Id = Guid.NewGuid(), EntrevistaId = ent.Id, Nome = m.Nome, Nivel = m.Nivel, Valor = m.Valor })
+                .ToList();
+
+            _db.Entrevistas.Add(ent);
+            await _db.SaveChangesAsync();
 
             return new EntrevistaOutputDto
             {
-                Id = entrevista.Id,
-				NomeEntrevista = entrevista.NomeEntrevista,
-				NomeEntrevistado = entrevista.NomeEntrevistado,
-                NomeEntrevistador = entrevista.NomeEntrevistador,
-                DataEntrevista = entrevista.DataEntrevista,
-                Linguagem = entrevista.Linguagem,
-                TamanhoKloc = entrevista.TamanhoKloc,
-                SomaScaleFactors = entrevista.SomaScaleFactors,
-                ProdutoEffortMultipliers = entrevista.ProdutoEffortMultipliers,
-                EsforcoPM = entrevista.EsforcoPM,
-                PrazoMeses = entrevista.PrazoMeses
+                Id = ent.Id,
+                NomeEntrevista = ent.NomeEntrevista,
+                NomeEntrevistado = ent.NomeEntrevistado,
+                NomeEntrevistador = ent.NomeEntrevistador,
+                DataEntrevista = ent.DataEntrevista,
+                Linguagem = ent.Linguagem,
+                TamanhoKloc = ent.TamanhoKloc,
+                SomaScaleFactors = ent.SomaScaleFactors,
+                ProdutoEffortMultipliers = ent.ProdutoEffortMultipliers,
+                EsforcoPM = ent.EsforcoPM,
+                PrazoMeses = ent.PrazoMeses,
+                TotalCFP = ent.TotalCFP,
+                TipoEntrada = ent.TipoEntrada
             };
         }
 
-        private async Task<decimal> ConverterFPParaKloc(EntrevistaInputDto dto)
-        {
-            if (dto.PontosDeFuncao == null || string.IsNullOrEmpty(dto.Linguagem))
-                throw new ArgumentException("FP e linguagem obrigatórios");
-
-            var taxa = await _context.ConversoesTamanho
-                .FirstOrDefaultAsync(c => c.TipoEntrada == "FP" && c.Contexto == dto.Linguagem)
-                ?? throw new InvalidOperationException("Conversão FP não encontrada");
-
-            return dto.PontosDeFuncao.Value * taxa.FatorConversao;
-        }
-
-        private async Task<decimal> ConverterCosmicParaKloc(EntrevistaInputDto dto)
-        {
-            var total = (dto.Entradas ?? 0) + (dto.Saidas ?? 0) + (dto.Leitura ?? 0) + (dto.Gravacao ?? 0);
-
-            var taxa = await _context.ConversoesTamanho
-                .FirstOrDefaultAsync(c => c.TipoEntrada == "COSMIC")
-                ?? throw new InvalidOperationException("Conversão COSMIC não encontrada");
-
-            return total * taxa.FatorConversao;
-        }
-
+        // =====================================================================================
+        // LIST / GET
+        // =====================================================================================
         public async Task<IEnumerable<EntrevistaOutputDto>> ListarEntrevistasAsync()
         {
-            return await _context.Entrevistas
-                .AsNoTracking()
-                .Select(e => new EntrevistaOutputDto
-                {
-                    Id = e.Id,
-                    NomeEntrevistado = e.NomeEntrevistado,
-                    NomeEntrevistador = e.NomeEntrevistador,
-                    DataEntrevista = e.DataEntrevista,
-                    Linguagem = e.Linguagem,
-                    TamanhoKloc = e.TamanhoKloc,
-                    SomaScaleFactors = e.SomaScaleFactors,
-                    ProdutoEffortMultipliers = e.ProdutoEffortMultipliers,
-                    EsforcoPM = e.EsforcoPM,
-                    PrazoMeses = e.PrazoMeses,
-                    TotalCFP = e.TotalCFP,
-                    NomeEntrevista = e.NomeEntrevista
-                }).ToListAsync();
-        }
+            var list = await _db.Entrevistas.AsNoTracking().ToListAsync();
 
-        public async Task<EntrevistaOutputDto?> ObterPorIdAsync(Guid id)
-        {
-            var e = await _context.Entrevistas
-                .AsNoTracking()
-                .FirstOrDefaultAsync(e => e.Id == id);
-
-            return e == null ? null : new EntrevistaOutputDto
+            return list.Select(e => new EntrevistaOutputDto
             {
                 Id = e.Id,
+                NomeEntrevista = e.NomeEntrevista,
                 NomeEntrevistado = e.NomeEntrevistado,
                 NomeEntrevistador = e.NomeEntrevistador,
                 DataEntrevista = e.DataEntrevista,
@@ -147,151 +136,361 @@ namespace Entrevistas.Application.Services
                 EsforcoPM = e.EsforcoPM,
                 PrazoMeses = e.PrazoMeses,
                 TotalCFP = e.TotalCFP,
+                TipoEntrada = e.TipoEntrada
+            });
+        }
+
+        public async Task<EntrevistaOutputDto?> ObterPorIdAsync(Guid id)
+        {
+            var e = await _db.Entrevistas.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (e == null) return null;
+
+            return new EntrevistaOutputDto
+            {
+                Id = e.Id,
                 NomeEntrevista = e.NomeEntrevista,
+                NomeEntrevistado = e.NomeEntrevistado,
+                NomeEntrevistador = e.NomeEntrevistador,
+                DataEntrevista = e.DataEntrevista,
+                Linguagem = e.Linguagem,
+                TamanhoKloc = e.TamanhoKloc,
+                SomaScaleFactors = e.SomaScaleFactors,
+                ProdutoEffortMultipliers = e.ProdutoEffortMultipliers,
+                EsforcoPM = e.EsforcoPM,
+                PrazoMeses = e.PrazoMeses,
+                TotalCFP = e.TotalCFP,
                 TipoEntrada = e.TipoEntrada
             };
         }
+
+        // =====================================================================================
+        // FUNCIONALIDADES (COSMIC)
+        // =====================================================================================
         public async Task<Guid> AdicionarFuncionalidadeAsync(Guid entrevistaId, NovaFuncDto dto)
         {
+            var ent = await _db.Entrevistas
+                .Include(x => x.Funcionalidades).ThenInclude(f => f.Medicao)
+                .Include(x => x.ScaleFactors)
+                .Include(x => x.EffortMultipliers)
+                .FirstOrDefaultAsync(x => x.Id == entrevistaId);
+
+            if (ent == null)
+                throw new KeyNotFoundException("Entrevista não encontrada.");
+
+            // E/X/R/W vêm de dto.Medicao (int)
+            var eVal = dto.Medicao.E;
+            var xVal = dto.Medicao.X;
+            var rVal = dto.Medicao.R;
+            var wVal = dto.Medicao.W;
+
+            var fid = Guid.NewGuid();
             var func = new Funcionalidade
             {
-                EntrevistaId = entrevistaId,
+                Id = fid,
+                EntrevistaId = ent.Id,
                 Nome = dto.Nome,
                 Template = dto.Template,
-                Observacoes = dto.Observacoes
+                Observacoes = dto.Observacoes,
+                Medicao = new MedicaoCosmic
+                {
+                    Id = Guid.NewGuid(),
+                    FuncionalidadeId = fid,
+                    EntryE = eVal,
+                    ExitX = xVal,
+                    ReadR = rVal,
+                    WriteW = wVal
+                }
             };
-            _context.Funcionalidades.Add(func);
 
-            var med = new MedicaoCosmic
-            {
-                FuncionalidadeId = func.Id,
-                EntryE = dto.Medicao.E,
-                ExitX = dto.Medicao.X,
-                ReadR = dto.Medicao.R,
-                WriteW = dto.Medicao.W
-            };
-            _context.MedicoesCosmic.Add(med);
+            _db.Funcionalidades.Add(func);
+            await _db.SaveChangesAsync();
 
-            await _context.SaveChangesAsync();
-            return func.Id;
+            await RecontarCfpERecalcularAsync(entrevistaId, ent.TipoEntrada, ent.Linguagem);
+            return fid;
         }
 
         public async Task<IReadOnlyList<FuncionalidadeVm>> ListarFuncionalidadesAsync(Guid entrevistaId)
         {
-            return await _context.Funcionalidades
+            var funcs = await _db.Funcionalidades
+                .AsNoTracking()
+                .Include(f => f.Medicao)
                 .Where(f => f.EntrevistaId == entrevistaId)
-                .Select(f => new FuncionalidadeVm(
-                    f.Id, f.Nome, f.Template, f.Observacoes,
-                    f.Medicao.EntryE, f.Medicao.ExitX, f.Medicao.ReadR, f.Medicao.WriteW,
-                    f.Medicao.EntryE + f.Medicao.ExitX + f.Medicao.ReadR + f.Medicao.WriteW
-                ))
                 .ToListAsync();
+
+            return funcs.Select(f =>
+            {
+                int e = f.Medicao?.EntryE ?? 0;
+                int x = f.Medicao?.ExitX ?? 0;
+                int r = f.Medicao?.ReadR ?? 0;
+                int w = f.Medicao?.WriteW ?? 0;
+                int total = e + x + r + w;
+                return new FuncionalidadeVm(f.Id, f.Nome, f.Template, f.Observacoes, e, x, r, w, total);
+            }).ToList();
         }
 
         public async Task<RecalculoCosmicVm> RecalcularCosmicAsync(Guid entrevistaId)
         {
-            var ent = await _context.Entrevistas.FirstAsync(e => e.Id == entrevistaId);
+            var ent = await _db.Entrevistas
+                .Include(e => e.Funcionalidades).ThenInclude(f => f.Medicao)
+                .Include(e => e.ScaleFactors)
+                .Include(e => e.EffortMultipliers)
+                .FirstOrDefaultAsync(x => x.Id == entrevistaId);
 
-            var totalCfp = await _context.MedicoesCosmic
-                .Where(m => m.Funcionalidade.EntrevistaId == entrevistaId)
-                .SumAsync(m => (int?)(m.EntryE + m.ExitX + m.ReadR + m.WriteW)) ?? 0;
+            if (ent == null)
+                throw new KeyNotFoundException("Entrevista não encontrada.");
 
-            // Conversao: procurar por TipoEntrada='COSMIC' e Contexto = ent.Linguagem, caindo para 'Padrão'
-            var taxa = await _context.ConversoesTamanho
-                .Where(c => c.TipoEntrada == "COSMIC" && (c.Contexto == ent.Linguagem || c.Contexto == "Padrão"))
-                .OrderByDescending(c => c.Contexto == ent.Linguagem) // específica primeiro
-                .Select(c => c.FatorConversao)
-                .FirstOrDefaultAsync();
+            await RecontarCfpERecalcularAsync(ent.Id, ent.TipoEntrada, ent.Linguagem);
+            await _db.SaveChangesAsync();
 
-            decimal kloc = 0m;
-            if (taxa > 0)
-            {
-                // Convenção do projeto: FatorConversao = UNIDADES por KLOC (ex: CFP/KLOC)
-                kloc = Math.Round(totalCfp / taxa, 3);
-            }
-
-            ent.TotalCFP = totalCfp;
-            ent.TamanhoKloc = kloc;
-
-            await _context.SaveChangesAsync();
-
-            return new RecalculoCosmicVm(totalCfp, kloc);
+            // Record: (int TotalCFP, decimal Kloc)
+            return new RecalculoCosmicVm(ent.TotalCFP, ent.TamanhoKloc);
         }
 
+        // =====================================================================================
+        // CREATE (rota com CreateEntrevistaDto — pode vir com Funcionalidades)
+        // =====================================================================================
         public async Task<CreateEntrevistaResult> CriarEntrevistaComCosmicAsync(CreateEntrevistaDto dto)
         {
-            using var tx = await _context.Database.BeginTransactionAsync();
-
-            var ent = new Entrevistas.Domain.Entities.Entrevista
+            var ent = new Domain.Entities.Entrevista
             {
                 Id = Guid.NewGuid(),
-                NomeEntrevista = dto.NomeEntrevista,
-                NomeEntrevistado = dto.NomeEntrevistado,
-                NomeEntrevistador = dto.NomeEntrevistador,
+                NomeEntrevista = dto.NomeEntrevista.Trim(),
+                NomeEntrevistado = dto.NomeEntrevistado.Trim(),
+                NomeEntrevistador = dto.NomeEntrevistador.Trim(),
                 DataEntrevista = dto.DataEntrevista,
-                Linguagem = dto.Linguagem,
-                TamanhoKloc = (dto.TipoEntrada == 1) ? dto.ValorKloc : 0,
-                // Se você já persiste SF/EM na entrevista, pode mapear aqui a partir de dto.ScaleFactors/EffortMultipliers
+                TipoEntrada = dto.TipoEntrada,
+                Linguagem = string.IsNullOrWhiteSpace(dto.Linguagem) ? null : dto.Linguagem!.Trim()
             };
-            _context.Entrevistas.Add(ent);
-            await _context.SaveChangesAsync();
 
-            int totalCfp = 0;
+            // SF/EM
+            ent.ScaleFactors = (dto.ScaleFactors ?? new List<ScaleFactorDto>()).Select(s =>
+                new ScaleFactor { Id = Guid.NewGuid(), EntrevistaId = ent.Id, Nome = s.Nome, Nivel = s.Nivel, Valor = s.Valor }).ToList();
 
-            // Insere funcionalidades + medições COSMIC (se vierem)
-            if (dto.Funcionalidades != null && dto.Funcionalidades.Count > 0)
+            ent.EffortMultipliers = (dto.EffortMultipliers ?? new List<EffortMultiplierDto>()).Select(m =>
+                new EffortMultiplier { Id = Guid.NewGuid(), EntrevistaId = ent.Id, Nome = m.Nome, Nivel = m.Nivel, Valor = m.Valor }).ToList();
+
+            // Funcionalidades (se vierem) OU somatórios do DTO
+            int totalCFP = 0;
+            if (dto.Funcionalidades is { Count: > 0 })
             {
-                foreach (var f in dto.Funcionalidades)
+                ent.Funcionalidades = dto.Funcionalidades.Select(f =>
                 {
-                    var func = new Funcionalidade
+                    var fid = Guid.NewGuid();
+                    totalCFP += (f.E + f.X + f.R + f.W);
+                    return new Funcionalidade
                     {
-                        Id = Guid.NewGuid(),
+                        Id = fid,
                         EntrevistaId = ent.Id,
                         Nome = f.Nome,
                         Template = f.Template,
-                        Observacoes = f.Observacoes
+                        Observacoes = f.Observacoes,
+                        Medicao = new MedicaoCosmic
+                        {
+                            Id = Guid.NewGuid(),
+                            FuncionalidadeId = fid,
+                            EntryE = f.E,
+                            ExitX = f.X,
+                            ReadR = f.R,
+                            WriteW = f.W
+                        }
                     };
-                    _context.Funcionalidades.Add(func);
-
-                    var med = new MedicaoCosmic
-                    {
-                        Id = Guid.NewGuid(),
-                        FuncionalidadeId = func.Id,
-                        EntryE = f.E,
-                        ExitX = f.X,
-                        ReadR = f.R,
-                        WriteW = f.W
-                    };
-                    _context.MedicoesCosmic.Add(med);
-
-                    totalCfp += (f.E + f.X + f.R + f.W);
-                }
-
-                await _context.SaveChangesAsync();
+                }).ToList();
             }
-
-            // Recalcula KLOC a partir de CFP e ConversoesTamanho
-            if (totalCfp > 0)
+            else
             {
-                var fator = await _context.ConversoesTamanho
-                    .Where(c => c.TipoEntrada == "COSMIC"
-                             && (c.Contexto == ent.Linguagem || c.Contexto == "Padrão" || c.Contexto == null))
-                    .OrderByDescending(c => c.Contexto == ent.Linguagem) // específica primeiro
-                    .Select(c => c.FatorConversao)                        // CFP por KLOC
-                    .FirstOrDefaultAsync();
-
-                decimal kloc = 0m;
-                if (fator > 0)
-                    kloc = Math.Round(totalCfp / fator, 3);
-
-                ent.TotalCFP = totalCfp;
-                ent.TamanhoKloc = kloc; // sobrepõe o valor manual se COSMIC foi informado
-                await _context.SaveChangesAsync();
+                totalCFP = dto.Entradas + dto.Saidas + dto.Leitura + dto.Gravacao;
             }
+            ent.TotalCFP = totalCFP;
 
-            await tx.CommitAsync();
+            // KLOC
+            decimal kloc = 0m;
+            if (ent.TipoEntrada == TipoEntradaTamanho.Cosmic)
+            {
+                var fator = await ObterFatorConversaoAsync("COSMIC", "Geral", ct: default);
+                kloc = Math.Round(ent.TotalCFP * fator, 6, MidpointRounding.AwayFromZero);
+            }
+            else if (ent.TipoEntrada == TipoEntradaTamanho.KLOC)
+            {
+                // CreateEntrevistaDto atual não tem ValorKloc; mantenha 0 ou ajuste a partial abaixo.
+                kloc = 0m; // CreateEntrevistaDto atual não tem ValorKloc; mantenha 0 ou ajuste a partial abaixo.
+            }
+            else if (ent.TipoEntrada == TipoEntradaTamanho.PontosDeFuncao)
+            {
+                // CreateEntrevistaDto não traz PF explícito — mantemos 0
+                kloc = 0m;
+            }
+            ent.TamanhoKloc = kloc;
+
+            // COCOMO
+            await RecalcularCocomoEarlyDesignAsync(ent);
+
+            _db.Entrevistas.Add(ent);
+            await _db.SaveChangesAsync();
+
             return new CreateEntrevistaResult(ent.Id, ent.TotalCFP, ent.TamanhoKloc);
         }
 
+        // =====================================================================================
+        // UPDATE / DELETE
+        // =====================================================================================
+        public async Task<bool> UpdateAsync(UpdateEntrevistaRequest request, CancellationToken ct = default)
+        {
+            var ent = await _db.Entrevistas
+                .Include(e => e.ScaleFactors)
+                .Include(e => e.EffortMultipliers)
+                .Include(e => e.Funcionalidades).ThenInclude(f => f.Medicao)
+                .FirstOrDefaultAsync(e => e.Id == request.Id, ct);
+
+            if (ent == null) return false;
+
+            // Básicos
+            ent.NomeEntrevista = request.NomeEntrevista.Trim();
+            ent.NomeEntrevistado = request.NomeEntrevistado.Trim();
+            ent.NomeEntrevistador = request.NomeEntrevistador.Trim();
+            ent.DataEntrevista = request.DataEntrevista;
+            ent.TipoEntrada = request.TipoEntrada;
+            ent.Linguagem = string.IsNullOrWhiteSpace(request.Linguagem) ? null : request.Linguagem!.Trim();
+
+            // Substitui SF/EM
+            _db.ScaleFactors.RemoveRange(ent.ScaleFactors);
+            _db.EffortMultipliers.RemoveRange(ent.EffortMultipliers);
+
+            ent.ScaleFactors = (request.ScaleFactors ?? new List<ScaleFactorDto>()).Select(s =>
+                new ScaleFactor { Id = Guid.NewGuid(), EntrevistaId = ent.Id, Nome = s.Nome, Nivel = s.Nivel, Valor = s.Valor }).ToList();
+
+            ent.EffortMultipliers = (request.EffortMultipliers ?? new List<EffortMultiplierDto>()).Select(m =>
+                new EffortMultiplier { Id = Guid.NewGuid(), EntrevistaId = ent.Id, Nome = m.Nome, Nivel = m.Nivel, Valor = m.Valor }).ToList();
+
+            // Se vierem funcionalidades no request, substitui por completo
+            if (request.Funcionalidades is { Count: > 0 })
+            {
+                _db.MedicoesCosmic.RemoveRange(ent.Funcionalidades.Where(f => f.Medicao != null).Select(f => f.Medicao!));
+                _db.Funcionalidades.RemoveRange(ent.Funcionalidades);
+
+                ent.Funcionalidades = request.Funcionalidades.Select(f =>
+                {
+                    var fid = Guid.NewGuid();
+                    return new Funcionalidade
+                    {
+                        Id = fid,
+                        EntrevistaId = ent.Id,
+                        Nome = f.Nome,
+                        Template = f.Template,
+                        Observacoes = f.Observacoes,
+                        Medicao = new MedicaoCosmic
+                        {
+                            Id = Guid.NewGuid(),
+                            FuncionalidadeId = fid,
+                            EntryE = f.E,
+                            ExitX = f.X,
+                            ReadR = f.R,
+                            WriteW = f.W
+                        }
+                    };
+                }).ToList();
+            }
+
+            // Recalcula TotalCFP
+            if (ent.Funcionalidades.Any())
+                ent.TotalCFP = ent.Funcionalidades.Sum(f => (f.Medicao?.EntryE ?? 0) + (f.Medicao?.ExitX ?? 0) + (f.Medicao?.ReadR ?? 0) + (f.Medicao?.WriteW ?? 0));
+            else
+                ent.TotalCFP = request.Entradas + request.Saidas + request.Leitura + request.Gravacao;
+
+            // KLOC: regras
+            if (request.ValorKloc.HasValue && request.ValorKloc.Value > 0)
+            {
+                ent.TamanhoKloc = Math.Round(request.ValorKloc.Value, 6, MidpointRounding.AwayFromZero);
+            }
+            else if (ent.TipoEntrada == TipoEntradaTamanho.Cosmic)
+            {
+                var fator = await ObterFatorConversaoAsync("COSMIC", "Geral", ct);
+                ent.TamanhoKloc = Math.Round(ent.TotalCFP * fator, 6, MidpointRounding.AwayFromZero);
+            }
+            else if (ent.TipoEntrada == TipoEntradaTamanho.PontosDeFuncao)
+            {
+                // sem PF explícito aqui; mantém o atual
+            }
+
+            await RecalcularCocomoEarlyDesignAsync(ent, ct);
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        public async Task<bool> DeleteAsync(DeleteEntrevistaRequest request, CancellationToken ct = default)
+        {
+            var ent = await _db.Entrevistas.FirstOrDefaultAsync(e => e.Id == request.Id, ct);
+            if (ent == null) return false;
+
+            _db.Entrevistas.Remove(ent); // Cascade cuida de SF/EM/Func/Medicao
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        // =====================================================================================
+        // Helpers
+        // =====================================================================================
+        private async Task RecontarCfpERecalcularAsync(Guid entrevistaId, TipoEntradaTamanho tipoEntrada, string? linguagem)
+        {
+            var ent = await _db.Entrevistas
+                .Include(e => e.Funcionalidades).ThenInclude(f => f.Medicao)
+                .Include(e => e.ScaleFactors)
+                .Include(e => e.EffortMultipliers)
+                .FirstAsync(e => e.Id == entrevistaId);
+
+            ent.TotalCFP = ent.Funcionalidades.Sum(f =>
+                (f.Medicao?.EntryE ?? 0) +
+                (f.Medicao?.ExitX ?? 0) +
+                (f.Medicao?.ReadR ?? 0) +
+                (f.Medicao?.WriteW ?? 0));
+
+            // Atualiza KLOC conforme tipo
+            if (tipoEntrada == TipoEntradaTamanho.Cosmic)
+            {
+                var fator = await ObterFatorConversaoAsync("COSMIC", "Geral", ct: default);
+                ent.TamanhoKloc = Math.Round(ent.TotalCFP * fator, 6, MidpointRounding.AwayFromZero);
+            }
+            else if (tipoEntrada == TipoEntradaTamanho.PontosDeFuncao)
+            {
+                // sem PF explícito aqui; mantém ent.TamanhoKloc
+            }
+
+            await RecalcularCocomoEarlyDesignAsync(ent);
+            await _db.SaveChangesAsync();
+        }
+
+        private async Task<decimal> ObterFatorConversaoAsync(string tipoEntrada, string? contexto, CancellationToken ct = default)
+        {
+            tipoEntrada = tipoEntrada.ToUpperInvariant();
+            string ctx = string.IsNullOrWhiteSpace(contexto) ? "Padrão" : contexto!.Trim();
+
+            if (tipoEntrada == "COSMIC" && string.IsNullOrWhiteSpace(contexto))
+                ctx = "Geral";
+
+            var conv = await _db.ConversoesTamanho.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.TipoEntrada == tipoEntrada && x.Contexto == ctx, ct);
+
+            if (conv == null && tipoEntrada == "PF" && ctx != "Padrão")
+            {
+                conv = await _db.ConversoesTamanho.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.TipoEntrada == tipoEntrada && x.Contexto == "Padrão", ct);
+            }
+
+            return conv?.FatorConversao ?? (tipoEntrada == "COSMIC" ? 0.025m : 0m);
+        }
+
+        private async Task RecalcularCocomoEarlyDesignAsync(Domain.Entities.Entrevista ent, CancellationToken ct = default)
+        {
+            var p = await _db.ParametrosCocomo.AsNoTracking().FirstOrDefaultAsync(ct)
+                    ?? new ParametrosCocomo { A = 2.94m, B = 0.91m, C = 3.67m, D = 0.28m };
+
+            ent.SomaScaleFactors = ent.ScaleFactors.Sum(s => s.Valor);
+            ent.ProdutoEffortMultipliers = ent.EffortMultipliers.Aggregate(1m, (acc, e) => acc * e.Valor);
+
+            var expoente = p.B + 0.01m * ent.SomaScaleFactors;
+            ent.EsforcoPM = Math.Round(p.A * (decimal)Math.Pow((double)ent.TamanhoKloc, (double)expoente) * ent.ProdutoEffortMultipliers, 6, MidpointRounding.AwayFromZero);
+            ent.PrazoMeses = Math.Round(p.C * (decimal)Math.Pow((double)ent.EsforcoPM, (double)p.D), 6, MidpointRounding.AwayFromZero);
+        }
     }
 }

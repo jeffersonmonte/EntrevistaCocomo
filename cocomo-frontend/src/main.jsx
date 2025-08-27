@@ -9,6 +9,9 @@ import DetalheEntrevista from "./pages/DetalheEntrevista";
 import DocsFormulas from "./pages/DocsFormulas";
 import Menu from "./components/Menu";
 
+import EntrevistaForm from "./pages/EntrevistaForm";
+import EntrevistaComCosmic from "./pages/EntrevistaComCosmic";
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Router>
@@ -50,6 +53,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/entrevistas" element={<ListaEntrevistas />} />
         <Route path="/entrevistas/:id" element={<DetalheEntrevista />} />
         <Route path="/docs/formulas" element={<DocsFormulas />} />
+        <Route path="/" element={<ListaEntrevistas />} />
+        <Route path="/nova" element={<EntrevistaForm />} />
+        <Route path="/nova-com-cosmic" element={<EntrevistaComCosmic />} />
+        <Route path="/editar/:id" element={<EntrevistaForm />} />
       </Routes>
     </Router>
   </React.StrictMode>

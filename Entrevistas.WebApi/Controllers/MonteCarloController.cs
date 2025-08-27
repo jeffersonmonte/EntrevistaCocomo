@@ -1,7 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
-using Entrevistas.Application.DTOs;
-using Entrevistas.Application.Services;
+﻿using Entrevistas.Application.DTOs;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Entrevistas.WebApi.Controllers

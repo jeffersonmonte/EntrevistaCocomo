@@ -2,17 +2,19 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Entrevistas.Infrastructure.Database.Configurations
+namespace Entrevistas.Infrastructure.Configurations
 {
     public class ParametrosCocomoConfig : IEntityTypeConfiguration<ParametrosCocomo>
     {
-        public void Configure(EntityTypeBuilder<ParametrosCocomo> builder)
+        public void Configure(EntityTypeBuilder<ParametrosCocomo> b)
         {
-            builder.HasKey(p => p.Id);
-            builder.Property(p => p.A).IsRequired();
-            builder.Property(p => p.B).IsRequired();
-            builder.Property(p => p.C).IsRequired();
-            builder.Property(p => p.D).IsRequired();
+            b.ToTable("ParametrosCocomo");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.A).HasColumnType("decimal(8,4)");
+            b.Property(x => x.B).HasColumnType("decimal(8,4)");
+            b.Property(x => x.C).HasColumnType("decimal(8,4)");
+            b.Property(x => x.D).HasColumnType("decimal(8,4)");
         }
     }
 }

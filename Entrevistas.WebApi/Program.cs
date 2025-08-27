@@ -7,20 +7,26 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Controllers & Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Injeção do DbContext
+// DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Injeção dos serviços da Application
-builder.Services.AddScoped<ITamanhoService, TamanhoService>();
+// CORS (opcional – ajuste conforme sua necessidade)
+builder.Services.AddCors(opt =>
+{
+    opt.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+});
+
+// DI – Services da camada Application
 builder.Services.AddScoped<IEntrevistaService, EntrevistaService>();
+builder.Services.AddScoped<ITamanhoService, TamanhoService>();
 builder.Services.AddScoped<IFatoresConversaoService, FatoresConversaoService>();
 builder.Services.AddScoped<IMonteCarloService, MonteCarloService>();
-
 
 var app = builder.Build();
 
@@ -30,8 +36,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors(policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
-
+app.UseCors();
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using Entrevistas.Application.DTOs;
+﻿using Entrevistas.Application.DTOs;
 using Entrevistas.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 

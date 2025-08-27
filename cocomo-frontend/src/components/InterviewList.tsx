@@ -3,6 +3,7 @@ import axios from "axios";
 
 type EntrevistaResumo = {
   id: number;
+  nomeEntrevista?: string;
   nomeEntrevistado: string;
   nomeEntrevistador: string;
   dataEntrevista: string;
@@ -14,20 +15,27 @@ export default function InterviewList() {
   useEffect(() => {
     axios.get("/api/Entrevistas")
       .then(res => setEntrevistas(res.data))
-      .catch(err => console.error("Erro ao buscar entrevistas:", err));
+      .catch(() => setEntrevistas([]));
   }, []);
 
+  if (!entrevistas?.length) {
+    return <p className="text-slate-300 text-sm">Nenhuma entrevista encontrada.</p>;
+  }
+
   return (
-    <div>
-      <h2 className="text-xl font-semibold mb-2">Entrevistas Realizadas</h2>
-      <ul className="space-y-2">
-        {entrevistas.map(e => (
-          <li key={e.id} className="p-2 border rounded">
-            <strong>{e.nomeEntrevista || '(sem título)'}</strong></div>
-            <strong>{e.nomeEntrevistado}</strong> entrevistado por <em>{e.nomeEntrevistador}</em> em {new Date(e.dataEntrevista).toLocaleDateString()}
-          </li>
-        ))}
-      </ul>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {entrevistas.map(e => (
+        <article key={e.id} className="card flex flex-col gap-2">
+          <header className="flex items-center justify-between gap-2">
+            <h3 className="font-semibold text-lg line-clamp-1">{e.nomeEntrevista || "Sem título"}</h3>
+            <span className="badge">{new Date(e.dataEntrevista).toLocaleDateString()}</span>
+          </header>
+          <div className="text-sm text-slate-300">
+            <div><span className="text-slate-400">Entrevistado:</span> {e.nomeEntrevistado}</div>
+            <div><span className="text-slate-400">Entrevistador:</span> {e.nomeEntrevistador}</div>
+          </div>
+        </article>
+      ))}
     </div>
   );
 }

@@ -2,16 +2,20 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Entrevistas.Infrastructure.Database.Configurations
+namespace Entrevistas.Infrastructure.Configurations
 {
     public class ConversaoTamanhoConfig : IEntityTypeConfiguration<ConversaoTamanho>
     {
-        public void Configure(EntityTypeBuilder<ConversaoTamanho> builder)
+        public void Configure(EntityTypeBuilder<ConversaoTamanho> b)
         {
-            builder.HasKey(p => p.Id);
-            builder.Property(p => p.TipoEntrada).IsRequired();
-            builder.Property(p => p.Contexto).IsRequired();
-            builder.Property(p => p.FatorConversao).IsRequired();
+            b.ToTable("ConversoesTamanho");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.TipoEntrada).IsRequired().HasMaxLength(20);
+            b.Property(x => x.Contexto).IsRequired().HasMaxLength(100);
+            b.Property(x => x.FatorConversao).HasColumnType("decimal(12,6)");
+
+            b.HasIndex(x => new { x.TipoEntrada, x.Contexto }).IsUnique();
         }
     }
 }

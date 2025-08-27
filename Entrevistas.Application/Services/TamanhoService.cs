@@ -1,10 +1,8 @@
 ﻿using Entrevistas.Application.DTOs;
 using Entrevistas.Application.Interfaces;
-using Entrevistas.Domain.Entities;
 using Entrevistas.Domain.Enums;
 using Entrevistas.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
-using System;
 
 namespace Entrevistas.Application.Services
 {

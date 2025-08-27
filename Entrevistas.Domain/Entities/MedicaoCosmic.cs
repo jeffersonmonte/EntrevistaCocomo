@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Entrevistas.Domain.Entities
+﻿namespace Entrevistas.Domain.Entities
 {
     public class MedicaoCosmic
     {
@@ -15,7 +9,7 @@ namespace Entrevistas.Domain.Entities
         public int ReadR { get; set; }
         public int WriteW { get; set; }
 
-        public int CFP => EntryE + ExitX + ReadR + WriteW;
+        //public int CFP => EntryE + ExitX + ReadR + WriteW;
         public Funcionalidade Funcionalidade { get; set; } = default!;
     }
 }

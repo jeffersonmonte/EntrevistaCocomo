@@ -6,8 +6,6 @@ namespace Entrevistas.Application.DTOs
     {
         public Guid Id { get; set; }
 		public string NomeEntrevista { get; set; } = string.Empty;
-		public string NomeEntrevistado { get; set; } = string.Empty;
-        public string NomeEntrevistador { get; set; } = string.Empty;
         public DateTime DataEntrevista { get; set; }
         public string? Linguagem { get; set; }
         public decimal TamanhoKloc { get; set; }

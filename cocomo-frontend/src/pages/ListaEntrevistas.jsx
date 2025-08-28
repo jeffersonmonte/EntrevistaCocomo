@@ -54,8 +54,6 @@ export default function ListaEntrevistas() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="p-2 text-left">Nome</th>
-                <th className="p-2 text-left">Entrevistado</th>
-                <th className="p-2 text-left">Entrevistador</th>
                 <th className="p-2 text-left">Data</th>
                 <th className="p-2 text-right">KLOC</th>
                 <th className="p-2 text-right">PM</th>
@@ -67,8 +65,6 @@ export default function ListaEntrevistas() {
               {itens.map((x) => (
                 <tr key={x.id} className="border-t">
                   <td className="p-2">{x.nomeEntrevista}</td>
-                  <td className="p-2">{x.nomeEntrevistado}</td>
-                  <td className="p-2">{x.nomeEntrevistador}</td>
                   <td className="p-2">{new Date(x.dataEntrevista).toLocaleDateString()}</td>
                   <td className="p-2 text-right">{Number(x.tamanhoKloc || 0).toFixed(2)}</td>
                   <td className="p-2 text-right">{Number(x.esforcoPM || 0).toFixed(2)}</td>
@@ -76,10 +72,10 @@ export default function ListaEntrevistas() {
                   <td className="p-2 text-right">
                     <Link
                       to={`/entrevistas/${x.id}`}
-                      className="px-2 py-1 text-slate-700 hover:underline"
+                      className="px-2 py-1 text-green-700 hover:underline"
                       title="Ver detalhes"
                     >
-                      Ver
+                      Ver detalhes
                     </Link>
                     <button
                       onClick={() => onEdit(x.id)}

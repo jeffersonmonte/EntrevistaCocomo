@@ -6,8 +6,6 @@ namespace Entrevistas.Application.DTOs
     public class UpdateEntrevistaDto
     {
         public string NomeEntrevista { get; set; } = null!;
-        public string NomeEntrevistado { get; set; } = null!;
-        public string NomeEntrevistador { get; set; } = null!;
         public DateTime DataEntrevista { get; set; }
 
         /// <summary>0=COSMIC, 1=PF</summary>

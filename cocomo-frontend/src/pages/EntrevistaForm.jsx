@@ -14,8 +14,6 @@ export default function EntrevistaForm() {
 
   // campos do payload POST/PUT
   const [nomeEntrevista, setNomeEntrevista] = useState("");
-  const [nomeEntrevistado, setNomeEntrevistado] = useState("");
-  const [nomeEntrevistador, setNomeEntrevistador] = useState("");
   const [dataEntrevista, setDataEntrevista] = useState(new Date().toISOString());
   const [tipoEntrada, setTipoEntrada] = useState(1); // 0=COSMIC, 1=PF
   const [valorKloc, setValorKloc] = useState(0);
@@ -51,8 +49,6 @@ export default function EntrevistaForm() {
       const dto = await obterEntrevista(id);
       setModel(dto);
       setNomeEntrevista(dto.nomeEntrevista || "");
-      setNomeEntrevistado(dto.nomeEntrevistado || "");
-      setNomeEntrevistador(dto.nomeEntrevistador || "");
       setDataEntrevista(new Date(dto.dataEntrevista).toISOString());
       setTipoEntrada(dto.tipoEntrada ?? 1);
       setLinguagem(dto.linguagem || "");
@@ -67,8 +63,6 @@ export default function EntrevistaForm() {
       await atualizarEntrevista(model.id, {
         id: model.id,
         nomeEntrevista,
-        nomeEntrevistado,
-        nomeEntrevistador,
         dataEntrevista,
         tipoEntrada,
         linguagem,
@@ -79,8 +73,6 @@ export default function EntrevistaForm() {
 
     await criarEntrevista({
       nomeEntrevista,
-      nomeEntrevistado,
-      nomeEntrevistador,
       dataEntrevista,
       tipoEntrada,
       valorKloc,
@@ -123,18 +115,6 @@ export default function EntrevistaForm() {
             />
           </label>
         </div>
-
-        <div className="grid sm:grid-cols-2 gap-3">
-          <label className="grid gap-1">
-            <span>Entrevistado</span>
-            <input className="border rounded p-2" value={nomeEntrevistado} onChange={e=>setNomeEntrevistado(e.target.value)} required />
-          </label>
-          <label className="grid gap-1">
-            <span>Entrevistador</span>
-            <input className="border rounded p-2" value={nomeEntrevistador} onChange={e=>setNomeEntrevistador(e.target.value)} required />
-          </label>
-        </div>
-
         <div className="grid sm:grid-cols-3 gap-3">
           <label className="grid gap-1">
             <span>Tipo de entrada</span>

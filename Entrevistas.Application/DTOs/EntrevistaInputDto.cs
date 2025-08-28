@@ -5,8 +5,6 @@ namespace Entrevistas.Application.DTOs
     public class EntrevistaInputDto
     {
 		public string NomeEntrevista { get; set; } = string.Empty;
-		public string NomeEntrevistado { get; set; } = string.Empty;
-        public string NomeEntrevistador { get; set; } = string.Empty;
         public DateTime DataEntrevista { get; set; } = DateTime.UtcNow;
 
         public TipoEntradaTamanho TipoEntrada { get; set; }

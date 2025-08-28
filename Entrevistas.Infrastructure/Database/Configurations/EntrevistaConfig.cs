@@ -12,8 +12,6 @@ namespace Entrevistas.Infrastructure.Database.Configurations
             e.HasKey(x => x.Id);
 
             e.Property(x => x.NomeEntrevista).HasMaxLength(120).IsRequired();
-            e.Property(x => x.NomeEntrevistado).HasMaxLength(100).IsRequired();
-            e.Property(x => x.NomeEntrevistador).HasMaxLength(100).IsRequired();
 
             e.Property(x => x.TamanhoKloc).HasColumnType("decimal(18,6)");
             e.Property(x => x.SomaScaleFactors).HasColumnType("decimal(18,6)");
@@ -23,8 +21,7 @@ namespace Entrevistas.Infrastructure.Database.Configurations
 
             e.Property(x => x.TotalCFP).HasDefaultValue(0);
 
-            e.HasIndex(x => x.DataEntrevista).HasDatabaseName("IX_Entrevistas_Data");
-            e.HasIndex(x => new { x.NomeEntrevistado, x.NomeEntrevistador })
+            e.HasIndex(x => x.DataEntrevista).HasDatabaseName("IX_Entrevistas_Data")
              .HasDatabaseName("IX_Entrevistas_Nomes");
         }
     }

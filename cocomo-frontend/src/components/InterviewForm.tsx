@@ -35,17 +35,6 @@ export default function InterviewForm({ value, onChange, onSubmit, submitting }:
         </div>
 
         <div className="col-6">
-          <label>Entrevistado</label>
-          <input className="input" value={local.nomeEntrevistado ?? ''}
-            onChange={(e)=>set('nomeEntrevistado', e.target.value)} required />
-        </div>
-        <div className="col-6">
-          <label>Entrevistador</label>
-          <input className="input" value={local.nomeEntrevistador ?? ''}
-            onChange={(e)=>set('nomeEntrevistador', e.target.value)} required />
-        </div>
-
-        <div className="col-6">
           <label>Tipo de Entrada</label>
           <select className="select" value={Number(local.tipoEntrada ?? 0)}
             onChange={(e)=>set('tipoEntrada', Number(e.target.value) as any)}>

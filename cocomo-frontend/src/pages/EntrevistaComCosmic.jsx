@@ -8,8 +8,6 @@ export default function EntrevistaComCosmic() {
   const navigate = useNavigate();
 
   const [nomeEntrevista, setNomeEntrevista] = useState("");
-  const [nomeEntrevistado, setNomeEntrevistado] = useState("");
-  const [nomeEntrevistador, setNomeEntrevistador] = useState("");
   const [dataEntrevista, setDataEntrevista] = useState(new Date().toISOString());
 
   // 0 = COSMIC (exigido neste endpoint)
@@ -52,8 +50,6 @@ export default function EntrevistaComCosmic() {
 
     const payload = {
       nomeEntrevista,
-      nomeEntrevistado,
-      nomeEntrevistador,
       dataEntrevista,
       tipoEntrada,
       valorKloc: 0,
@@ -91,17 +87,6 @@ export default function EntrevistaComCosmic() {
               onChange={e => setDataEntrevista(new Date(e.target.value).toISOString())}
               required
             />
-          </label>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-3">
-          <label className="grid gap-1">
-            <span>Entrevistado</span>
-            <input className="border rounded p-2" value={nomeEntrevistado} onChange={e=>setNomeEntrevistado(e.target.value)} required />
-          </label>
-          <label className="grid gap-1">
-            <span>Entrevistador</span>
-            <input className="border rounded p-2" value={nomeEntrevistador} onChange={e=>setNomeEntrevistador(e.target.value)} required />
           </label>
         </div>
 

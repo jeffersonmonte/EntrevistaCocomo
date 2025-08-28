@@ -72,8 +72,6 @@ namespace Entrevistas.Application.Services
             {
                 Id = Guid.NewGuid(),
                 NomeEntrevista = dto.NomeEntrevista.Trim(),
-                NomeEntrevistado = dto.NomeEntrevistado.Trim(),
-                NomeEntrevistador = dto.NomeEntrevistador.Trim(),
                 DataEntrevista = dto.DataEntrevista,
                 TipoEntrada = dto.TipoEntrada,
                 Linguagem = string.IsNullOrWhiteSpace(dto.Linguagem) ? null : dto.Linguagem!.Trim(),
@@ -101,8 +99,6 @@ namespace Entrevistas.Application.Services
             {
                 Id = ent.Id,
                 NomeEntrevista = ent.NomeEntrevista,
-                NomeEntrevistado = ent.NomeEntrevistado,
-                NomeEntrevistador = ent.NomeEntrevistador,
                 DataEntrevista = ent.DataEntrevista,
                 Linguagem = ent.Linguagem,
                 TamanhoKloc = ent.TamanhoKloc,
@@ -126,8 +122,6 @@ namespace Entrevistas.Application.Services
             {
                 Id = e.Id,
                 NomeEntrevista = e.NomeEntrevista,
-                NomeEntrevistado = e.NomeEntrevistado,
-                NomeEntrevistador = e.NomeEntrevistador,
                 DataEntrevista = e.DataEntrevista,
                 Linguagem = e.Linguagem,
                 TamanhoKloc = e.TamanhoKloc,
@@ -151,8 +145,6 @@ namespace Entrevistas.Application.Services
             {
                 Id = e.Id,
                 NomeEntrevista = e.NomeEntrevista,
-                NomeEntrevistado = e.NomeEntrevistado,
-                NomeEntrevistador = e.NomeEntrevistador,
                 DataEntrevista = e.DataEntrevista,
                 Linguagem = e.Linguagem,
                 TamanhoKloc = e.TamanhoKloc,
@@ -257,8 +249,6 @@ namespace Entrevistas.Application.Services
             {
                 Id = Guid.NewGuid(),
                 NomeEntrevista = dto.NomeEntrevista.Trim(),
-                NomeEntrevistado = dto.NomeEntrevistado.Trim(),
-                NomeEntrevistador = dto.NomeEntrevistador.Trim(),
                 DataEntrevista = dto.DataEntrevista,
                 TipoEntrada = dto.TipoEntrada,
                 Linguagem = string.IsNullOrWhiteSpace(dto.Linguagem) ? null : dto.Linguagem!.Trim()
@@ -347,8 +337,6 @@ namespace Entrevistas.Application.Services
 
 			// Atualize campos básicos da entrevista
 			ent.NomeEntrevista = request.NomeEntrevista?.Trim();
-			ent.NomeEntrevistado = request.NomeEntrevistado?.Trim();
-			ent.NomeEntrevistador = request.NomeEntrevistador?.Trim();
 			ent.DataEntrevista = request.DataEntrevista;
 			ent.TipoEntrada = (TipoEntradaTamanho)request.TipoEntrada;
 			ent.Linguagem = request.Linguagem;
@@ -500,8 +488,6 @@ namespace Entrevistas.Application.Services
 			{
 				Id = ent.Id,
 				NomeEntrevista = ent.NomeEntrevista,
-				NomeEntrevistado = ent.NomeEntrevistado,
-				NomeEntrevistador = ent.NomeEntrevistador,
 				DataEntrevista = ent.DataEntrevista,
 				TipoEntrada = (int)ent.TipoEntrada,
 				Linguagem = ent.Linguagem,

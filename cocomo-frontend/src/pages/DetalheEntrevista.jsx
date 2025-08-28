@@ -262,8 +262,6 @@ export default function DetalheEntrevista() {
   const resultadoJson = {
     entrevista: {
       nomeEntrevista: entrevista.nomeEntrevista || entrevista.nome || null,
-      nomeEntrevistado: entrevista.nomeEntrevistado || null,
-      nomeEntrevistador: entrevista.nomeEntrevistador || null,
       dataEntrevista: entrevista.dataEntrevista || null,
       linguagem: entrevista.linguagem || null,
       tipoEntrada: tipoEntradaTxt,
@@ -305,8 +303,6 @@ export default function DetalheEntrevista() {
       <div className="mb-4 p-4 border rounded">
         <div><b>Nome do processo:</b> {entrevista.nomeEntrevista || entrevista.nome || '—'}</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-          <div><b>Entrevistador:</b> {entrevista.nomeEntrevistador || '—'}</div>
-          <div><b>Entrevistado:</b> {entrevista.nomeEntrevistado || '—'}</div>
           <div><b>Linguagem:</b> {entrevista.linguagem || '—'}</div>
           <div><b>Tipo de Entrada:</b> {tipoEntradaTxt}</div>
           <div><b>Data:</b> {fmtDateBR(entrevista.dataEntrevista)}</div>

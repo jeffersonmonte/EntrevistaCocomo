@@ -6,8 +6,6 @@ namespace Entrevistas.Domain.Entities
     {
         public Guid Id { get; set; }
         public string NomeEntrevista { get; set; } = null!;
-        public string NomeEntrevistado { get; set; } = null!;
-        public string NomeEntrevistador { get; set; } = null!;
         public DateTime DataEntrevista { get; set; }
 
         /// <summary>

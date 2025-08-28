@@ -19,8 +19,6 @@ const InterviewForm = () => {
   const editId = searchParams.get('id');
 
   const [formData, setFormData] = useState({
-    nomeEntrevistado: '',
-    nomeEntrevistador: '',
     dataEntrevista: '',
     tipoEntrada: 1, // 1=KLOC, 2=PF
     valorKloc: 0,
@@ -277,8 +275,6 @@ const InterviewForm = () => {
         setFormData((prev) => ({
           ...prev,
           nomeEntrevista: detail.nomeEntrevista || '',
-          nomeEntrevistado: detail.nomeEntrevistado || '',
-          nomeEntrevistador: detail.nomeEntrevistador || '',
           dataEntrevista: (detail.dataEntrevista || '').slice(0, 10),
           tipoEntrada: detail.tipoEntrada ?? prev.tipoEntrada,
           linguagem: detail.linguagem ?? '',
@@ -473,26 +469,6 @@ const InterviewForm = () => {
                 className="border-2 border-gray-300 p-2 w-full rounded"
                 value={formData.nomeEntrevista}
                 onChange={(e) => setFormData({ ...formData, nomeEntrevista: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className="block">Nome do Entrevistado</label>
-              <input
-                type="text"
-                className="border-2 p-2 w-full"
-                value={formData.nomeEntrevistado}
-                onChange={(e) => setFormData({ ...formData, nomeEntrevistado: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className="block">Nome do Entrevistador</label>
-              <input
-                type="text"
-                className="border-2 p-2 w-full"
-                value={formData.nomeEntrevistador}
-                onChange={(e) => setFormData({ ...formData, nomeEntrevistador: e.target.value })}
               />
             </div>
 

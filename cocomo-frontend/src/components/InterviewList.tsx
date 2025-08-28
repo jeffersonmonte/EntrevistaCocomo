@@ -4,8 +4,6 @@ import axios from "axios";
 type EntrevistaResumo = {
   id: number;
   nomeEntrevista?: string;
-  nomeEntrevistado: string;
-  nomeEntrevistador: string;
   dataEntrevista: string;
 };
 
@@ -30,10 +28,6 @@ export default function InterviewList() {
             <h3 className="font-semibold text-lg line-clamp-1">{e.nomeEntrevista || "Sem título"}</h3>
             <span className="badge">{new Date(e.dataEntrevista).toLocaleDateString()}</span>
           </header>
-          <div className="text-sm text-slate-300">
-            <div><span className="text-slate-400">Entrevistado:</span> {e.nomeEntrevistado}</div>
-            <div><span className="text-slate-400">Entrevistador:</span> {e.nomeEntrevistador}</div>
-          </div>
         </article>
       ))}
     </div>

@@ -33,7 +33,6 @@ namespace Entrevistas.Infrastructure.Database
             modelBuilder.ApplyConfiguration(new MonteCarloResultadoConfig());
 
             modelBuilder.Entity<Entrevista>().HasIndex(x => x.DataEntrevista);
-            modelBuilder.Entity<Entrevista>().HasIndex(x => new { x.NomeEntrevistado, x.NomeEntrevistador });
 
             base.OnModelCreating(modelBuilder);
         }

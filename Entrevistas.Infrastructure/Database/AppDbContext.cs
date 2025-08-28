@@ -17,10 +17,10 @@ namespace Entrevistas.Infrastructure.Database
         public DbSet<ParametrosCocomo> ParametrosCocomo => Set<ParametrosCocomo>();
         public DbSet<ConversaoTamanho> ConversoesTamanho => Set<ConversaoTamanho>();
         public DbSet<FatoresConversao> FatoresConversao => Set<FatoresConversao>();
+        public DbSet<MonteCarloResultado> MonteCarloResultados => Set<MonteCarloResultado>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // === Mantém exatamente seu padrão de ApplyConfiguration ===
             modelBuilder.ApplyConfiguration(new EntrevistaConfig());
             modelBuilder.ApplyConfiguration(new ScaleFactorConfig());
             modelBuilder.ApplyConfiguration(new EffortMultiplierConfig());
@@ -30,8 +30,8 @@ namespace Entrevistas.Infrastructure.Database
             modelBuilder.ApplyConfiguration(new ConversaoTamanhoConfig());
             modelBuilder.ApplyConfiguration(new ParametrosCocomoConfig());
             modelBuilder.ApplyConfiguration(new FatoresConversaoConfig());
+            modelBuilder.ApplyConfiguration(new MonteCarloResultadoConfig());
 
-            // (Opcional) Índices úteis – NÃO removem nada do que você já tem no SQL
             modelBuilder.Entity<Entrevista>().HasIndex(x => x.DataEntrevista);
             modelBuilder.Entity<Entrevista>().HasIndex(x => new { x.NomeEntrevistado, x.NomeEntrevistador });
 

@@ -41,3 +41,26 @@ export async function criarEntrevistaComCosmic(payload) {
   const { data } = await http.post(`${ROOT}/com-cosmic`, payload);
   return data; // { id, totalCFP, tamanhoKloc }
 }
+
+export async function mcRunAndPersist(entrevistaId, options, overwrite=false) {
+  const { data } = await http.post(`${ROOT}/{entrevistaId}/cocomo/monte-carlo/persist?overwrite=${overwrite}`, options);
+  return data; // MonteCarloRunDto
+}
+
+export async function mcGetUltimo(entrevistaId) {
+  const { data } = await http.get(`${ROOT}/${entrevistaId}/cocomo/monte-carlo/ultimo`);
+  return data; // MonteCarloRunDto | null
+}
+
+export async function mcListar(entrevistaId) {
+  const { data } = await http.get(`${ROOT}/${entrevistaId}/cocomo/monte-carlo`);
+  return data; // MonteCarloRunDto[]
+}
+
+export async function mcMarcarAtual(entrevistaId, runId) {
+  await http.put(`${ROOT}/${entrevistaId}/cocomo/monte-carlo/${runId}/atual`);
+}
+
+export async function mcRemover(entrevistaId, runId) {
+  await http.delete(`${ROOT}/${entrevistaId}/cocomo/monte-carlo/${runId}`);
+}

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams, useLocation, Link } from 'react-router-dom';
+import { mcGetUltimo, mcRunAndPersist } from "../lib/api";
 
 // Cache local do MC
 const MC_CACHE_PREFIX = 'mcResumo:';
@@ -138,12 +139,7 @@ function normalizeMc(payloadIn) {
 async function tryGetMc(base, id) {
   const candidates = [
     `${base}/${id}/cocomo/monte-carlo`,
-    `${base}/${id}/cocomo/monte-carlo/resultado`,
-    `${base}/${id}/cocomo/monte-carlo/resumo`,
-    `${base}/${id}/cocomo/monte-carlo/summary`,
-    `${base}/${id}/cocomo/monte-carlo/sumario`,
     `${base}/${id}/cocomo/monte-carlo/ultimo`,
-    `${base}/${id}/cocomo/monte-carlo/latest`,
   ];
   for (const url of candidates) {
     try {

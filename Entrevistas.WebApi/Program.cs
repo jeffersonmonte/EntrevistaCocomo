@@ -7,13 +7,21 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddHttpClient();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // DbContext
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<AppDbContext>(opts =>
+{
+    var cs = builder.Configuration.GetConnectionString("DefaultConnection");
+    opts.UseSqlServer(cs);
+    opts.EnableDetailedErrors();
+    opts.EnableSensitiveDataLogging(); // cuidado em produção
+    opts.LogTo(Console.WriteLine, LogLevel.Information); // vê os INSERT/UPDATE no console
+});
 
 // CORS (opcional – ajuste conforme sua necessidade)
 builder.Services.AddCors(opt =>
@@ -38,6 +46,28 @@ if (app.Environment.IsDevelopment())
 app.UseCors();
 app.UseHttpsRedirection();
 app.UseAuthorization();
+
+/// ***Diagnóstico de conexão na inicialização ***
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    try
+    {
+        var conn = db.Database.GetDbConnection();
+        Console.WriteLine($"[DB] Provider......: {db.Database.ProviderName}");
+        Console.WriteLine($"[DB] DataSource....: {conn.DataSource}");
+        Console.WriteLine($"[DB] Database......: {conn.Database}");
+
+        var canConnect = db.Database.CanConnect();
+        Console.WriteLine($"[DB] CanConnect....: {canConnect}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[DB] Erro ao checar conexão: {ex.Message}");
+    }
+}
+
+
 app.MapControllers();
 
 app.Run();

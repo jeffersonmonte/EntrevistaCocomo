@@ -4,8 +4,6 @@ import axios from 'axios';
 import CocomoChecklist from '../components/CocomoChecklist';
 import CosmicInlineGrid from '../components/CosmicInlineGrid';
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 // Cache local para resumo do MC
 const MC_CACHE_PREFIX = 'mcResumo:';
 function saveMcLocal(id, resumoComMeta) {
@@ -46,19 +44,19 @@ const InterviewForm = () => {
   const [fatoresConversao, setFatoresConversao] = useState([]);
   const [resumo, setResumo] = useState({ totalCFP: 0, kloc: 0 });
 
-  // Monte Carlo
-  const [useMonteCarlo, setUseMonteCarlo] = useState(false);
+  // ---- Monte Carlo (na própria InterviewForm) ----
+  const [useMonteCarlo, setUseMonteCarlo] = useState(true);
   const [mcIterations, setMcIterations] = useState(10000);
 
-  // Incerteza do KLOC
-  const [mcMode, setMcMode] = useState('fixed'); // 'fixed' | 'percent' | 'tri'
+  // modos: 'fixed' | 'percent' | 'tri'
+  const [mcMode, setMcMode] = useState('percent');
   const [mcPerc, setMcPerc] = useState(20);
   const [klocMin, setKlocMin] = useState(0);
   const [klocMode, setKlocMode] = useState(0);
   const [klocMax, setKlocMax] = useState(0);
   const [triError, setTriError] = useState('');
 
-  // Resultado/depuração
+  // Resultado de depuração inline
   const [mcResumo, setMcResumo] = useState(null);
   const [mcRaw, setMcRaw] = useState(null);
   const [mcShowRaw, setMcShowRaw] = useState(false);
@@ -94,7 +92,7 @@ const InterviewForm = () => {
   const scaleFactorData = agruparFatores('ScaleFactor');
   const effortMultiplierData = agruparFatores('EffortMultiplier');
 
-  // --------- Helpers: pegar seleção atual para cada contexto (para "value" do select) ---------
+  // seleção atual para cada contexto
   const selectedNivel = (tipo, contexto) => {
     const list = tipo === 'ScaleFactor' ? formData.scaleFactors : formData.effortMultipliers;
     const found = (list || []).find((x) => x.nome === contexto);
@@ -125,7 +123,7 @@ const InterviewForm = () => {
     );
   };
 
-  // --------- NORMALIZADOR (case-insensitive, aceita vários formatos) ---------
+  // --------- NORMALIZADOR do retorno MC (flexível) ---------
   const normalizeMc = (payloadIn) => {
     if (payloadIn === undefined || payloadIn === null) return null;
 
@@ -236,7 +234,7 @@ const InterviewForm = () => {
     return null;
   };
 
-  // --------- criação entrevista com fallback de rota ---------
+  // --------- criação entrevista (fallback para rota com maiúscula) ---------
   const createEntrevista = async () => {
     try {
       const res = await axios.post('/api/entrevistas', formData);
@@ -285,14 +283,12 @@ const InterviewForm = () => {
           tipoEntrada: detail.tipoEntrada ?? prev.tipoEntrada,
           linguagem: detail.linguagem ?? '',
           valorKloc: detail.tamanhoKloc ?? prev.valorKloc,
-          // Os quatro abaixo só se seu detalhe trouxer campos diretos:
           entradas: detail.entradas ?? prev.entradas ?? 0,
           saidas: detail.saidas ?? prev.saidas ?? 0,
           leitura: detail.leitura ?? prev.leitura ?? 0,
           gravacao: detail.gravacao ?? prev.gravacao ?? 0,
           scaleFactors: detail.scaleFactors ?? prev.scaleFactors,
           effortMultipliers: detail.effortMultipliers ?? prev.effortMultipliers,
-          // funcionalidades: detail.funcionalidades ?? prev.funcionalidades,
         }));
       } catch (e) {
         console.error('[Editar] Falha ao carregar detalhe', e);
@@ -319,7 +315,7 @@ const InterviewForm = () => {
     setMcResumo(null);
     setMcRaw(null);
 
-    // EDIÇÃO: apenas atualiza e sai (sem MC aqui)
+    // EDIÇÃO: apenas atualiza (sem MC aqui)
     if (editId) {
       const upd = await updateEntrevista(editId);
       if (!upd.ok) {
@@ -331,7 +327,7 @@ const InterviewForm = () => {
       return;
     }
 
-    // CRIAÇÃO (mantém o fluxo com Monte Carlo)
+    // CRIAÇÃO + (opcional) MC persistido
     if (useMonteCarlo && mcMode === 'tri' && triError) {
       alert('Parâmetros triangulares inválidos. ' + triError);
       return;
@@ -361,11 +357,9 @@ const InterviewForm = () => {
         return;
       }
 
-      // monta min/mode/max
+      // monta min/mode/max conforme o modo escolhido
       const baseKloc = Number(formData.valorKloc || resumo.kloc || 0) || 0;
-      let a = baseKloc,
-        b = baseKloc,
-        c = baseKloc;
+      let a = baseKloc, b = baseKloc, c = baseKloc;
       if (mcMode === 'percent') {
         const p = Math.max(0, Number(mcPerc) || 0) / 100;
         a = Math.max(0, baseKloc * (1 - p));
@@ -377,56 +371,42 @@ const InterviewForm = () => {
         c = Math.max(0, Number(klocMax) || 0);
       }
 
-      try {
-        const mcBody = {
-          enabled: true,
-          iterations: Number.isFinite(+mcIterations) ? +mcIterations : 10000,
-          klocMin: a,
-          klocMode: b,
-          klocMax: c,
-        };
-        const postUrl = `${base}/${id}/cocomo/monte-carlo`;
-        const postRes = await axios.post(postUrl, mcBody);
+      // Executa e PERSISTE como “Atual” (overwrite=true)
+      const mcBody = {
+        enabled: true,
+        iterations: Number.isFinite(+mcIterations) ? +mcIterations : 10000,
+        klocMin: a,
+        klocMode: b,
+        klocMax: c,
+      };
 
-        let norm = normalizeMc((postRes && postRes.data) || {});
-        let rawBundle = { step: 'post', url: postUrl, post: postRes && postRes.data, params: mcBody };
+      // endpoint persistente
+      const persistUrl = `${base}/${id}/cocomo/monte-carlo/persist?overwrite=true`;
+      const persistRes = await axios.post(persistUrl, mcBody);
 
-        if (!norm) {
-          const polled = await pollMc(base, id, postRes && postRes.data);
-          norm = polled.norm;
-          rawBundle = polled.raw;
-        }
+      setMcRaw({ step: 'persist', url: persistUrl, request: mcBody, response: persistRes?.data });
 
-        setMcRaw(rawBundle);
-        if (norm) {
-          const model = { ...norm, _meta: { iterations: mcBody.iterations, a, b, c } };
-          setMcResumo(model);
-          saveMcLocal(id, model);
-          try {
-            await persistMc(base, id, norm);
-          } catch (e) {}
-          alert('Entrevista salva + Monte Carlo concluído!');
-          navigate(`/entrevistas/${id}`, {
-            state: {
-              flash: 'Entrevista salva + Monte Carlo concluído!',
-              mcResumo: model,
-              mcRaw: rawBundle,
-            },
-          });
-        } else {
-          alert('Monte Carlo executado, mas o servidor não retornou dados utilizáveis.');
-          navigate(`/entrevistas/${id}`, {
-            state: { flash: 'Entrevista salva (Monte Carlo sem dados utilizáveis).', mcRaw: rawBundle },
-          });
-        }
-      } catch (mcErr) {
-        console.error(mcErr);
-        alert('Falha ao executar Monte Carlo.');
-        navigate(`/entrevistas/${id}`, { state: { flash: 'Entrevista salva (falha no Monte Carlo).' } });
+      const norm = normalizeMc(persistRes?.data || {});
+      if (norm) {
+        const model = { ...norm, _meta: { iterations: mcBody.iterations, a, b, c } };
+        setMcResumo(model);
+        saveMcLocal(id, model);
+        alert('Entrevista salva + Monte Carlo persistido com sucesso!');
+      } else {
+        alert('Monte Carlo persistido, mas não foi possível normalizar o retorno.');
       }
+
+      // segue para o detalhe
+      navigate(`/entrevistas/${id}`, {
+        state: {
+          flash: 'Entrevista salva + Monte Carlo persistido!',
+          mcResumo: norm,
+          mcRaw: persistRes?.data,
+        },
+      });
     } catch (err) {
       console.error(err);
-      alert('Falha ao salvar entrevista.');
+      alert('Falha ao salvar entrevista ou persistir Monte Carlo.');
     }
   };
 
@@ -475,14 +455,10 @@ const InterviewForm = () => {
             />
 
             <div className="mt-4 text-sm">
-              <div>
-                Total CFP (inline): <b>{resumo.totalCFP || 0}</b>
-              </div>
+              <div> Total CFP (inline): <b>{resumo.totalCFP || 0}</b> </div>
               <div>
                 KLOC (inline):{' '}
-                <b>
-                  {resumo.kloc && resumo.kloc.toFixed ? resumo.kloc.toFixed(3) : resumo.kloc || 0}
-                </b>
+                <b>{resumo.kloc && resumo.kloc.toFixed ? resumo.kloc.toFixed(3) : resumo.kloc || 0}</b>
               </div>
             </div>
           </div>

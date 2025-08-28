@@ -243,7 +243,8 @@
         ],
         "StatusCode": 404
       }
-    ]
+    ],
+    "EndpointName": "Entrevistas_GetById"
   },
   {
     "ContainingType": "Entrevistas.API.Controllers.EntrevistasController",
@@ -316,7 +317,7 @@
     ]
   },
   {
-    "ContainingType": "Entrevistas.WebApi.Controllers.MonteCarloController",
+    "ContainingType": "MonteCarloController",
     "Method": "Run",
     "RelativePath": "api/entrevistas/{id}/cocomo/monte-carlo",
     "HttpMethod": "POST",
@@ -337,6 +338,136 @@
     "ReturnTypes": [
       {
         "Type": "Entrevistas.Application.DTOs.MonteCarloSummaryDto",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "MonteCarloController",
+    "Method": "Listar",
+    "RelativePath": "api/entrevistas/{id}/cocomo/monte-carlo",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IReadOnlyList\u00601[[Entrevistas.Application.DTOs.MonteCarloRunDto, Entrevistas.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "MonteCarloController",
+    "Method": "Remover",
+    "RelativePath": "api/entrevistas/{id}/cocomo/monte-carlo/{runId}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "runId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "MonteCarloController",
+    "Method": "MarcarAtual",
+    "RelativePath": "api/entrevistas/{id}/cocomo/monte-carlo/{runId}/atual",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "runId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "MonteCarloController",
+    "Method": "RunAndPersist",
+    "RelativePath": "api/entrevistas/{id}/cocomo/monte-carlo/persist",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "options",
+        "Type": "Entrevistas.Application.DTOs.MonteCarloOptionsDto",
+        "IsRequired": true
+      },
+      {
+        "Name": "overwrite",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Entrevistas.Application.DTOs.MonteCarloRunDto",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "MonteCarloController",
+    "Method": "GetUltimo",
+    "RelativePath": "api/entrevistas/{id}/cocomo/monte-carlo/ultimo",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Entrevistas.Application.DTOs.MonteCarloRunDto",
         "MediaTypes": [
           "text/plain",
           "application/json",
@@ -522,7 +653,8 @@
         ],
         "StatusCode": 404
       }
-    ]
+    ],
+    "EndpointName": "Entrevistas_ListarFunc"
   },
   {
     "ContainingType": "Entrevistas.API.Controllers.EntrevistasController",
